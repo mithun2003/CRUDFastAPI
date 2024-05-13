@@ -1,0 +1,86 @@
+site_name: CRUDFastAPI
+site_description: Powerful CRUD methods and automatic endpoint creation for FastAPI.
+site_author: Igor Magalhaes
+site_url: https://github.com/mithunthomas2003/CRUDFastAPI
+
+theme:
+  name: material
+  font:
+    text: Ubuntu
+  logo: assets/logo.png
+  favicon: assets/logo.png
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.tabs
+    - navigation.indexes
+    - search.suggest
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          rendering:
+            show_source: true
+
+nav:
+  - CRUDFastAPI: index.md
+  - Installing: installing.md
+  - Quick-Start: quick-start.md
+  - Using SQLModel: sqlmodel.md
+  - Usage:
+    - Overview: usage/overview.md
+    - Automatic Endpoints: usage/endpoint.md
+    - CRUD Utilities: usage/crud.md
+  - Advanced:
+    - Overview: advanced/overview.md
+    - Custom Endpoints: advanced/endpoint.md
+    - Advanced CRUD Usage: advanced/crud.md
+    - Joining Models: advanced/joins.md
+  - API Reference: 
+    - Overview: api/overview.md
+    - CRUDFastAPI: api/fastcrud.md
+    - EndpointCreator: api/endpoint_creator.md
+    - crud_router: api/crud_router.md
+    - paginated: api/paginated.md
+  - Community:
+    - Overview: community/overview.md
+    - Contributing: community/CONTRIBUTING.md
+    - Code of Conduct: community/CODE_OF_CONDUCT.md
+    - License: community/LICENSE.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+repo_name: mithunthomas2003/CRUDFastAPI
+repo_url: https://github.com/mithunthomas2003/CRUDFastAPI
+edit_uri: edit/main/docs/
