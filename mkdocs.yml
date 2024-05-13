@@ -1,7 +1,7 @@
 site_name: CRUDFastAPI
 site_description: Powerful CRUD methods and automatic endpoint creation for FastAPI.
 site_author: Igor Magalhaes
-site_url: https://github.com/mithunthomas2003/CRUDFastAPI
+site_url: https://github.com/mithun2003/CRUDFastAPI
 
 theme:
   name: material
@@ -81,6 +81,6 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.superfences
 
-repo_name: mithunthomas2003/CRUDFastAPI
-repo_url: https://github.com/mithunthomas2003/CRUDFastAPI
+repo_name: mithun2003/CRUDFastAPI
+repo_url: https://github.com/mithun2003/CRUDFastAPI
 edit_uri: edit/main/docs/

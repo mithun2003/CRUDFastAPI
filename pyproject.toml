@@ -1,11 +1,11 @@
 [tool.poetry]
 name = "CRUDFastAPI"
-version = "0.12.1"
+version = "0.0.0"
 description = "CRUDFastAPI is a Python package for FastAPI, offering robust async CRUD operations and flexible endpoint creation utilities."
-authors = ["Mithun Thomas <mithunthomas2003@gmail.com>"]
+authors = ["Mithun Thomas <mithunthomas003@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/mithunthomas2003/CRUDFastAPI"
+repository = "https://github.com/mithun2003/CRUDFastAPI"
 include = ["LICENSE"]
 
 classifiers = [
@@ -23,7 +23,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 
-keywords = ["fastapi", "crud", "async", "sqlalchemy", "pydantic"]
+keywords = ["fastapi", "crud", "async", "sqlalchemy", "pydantic", "fastcrud", "crudfastapi"]
 
 [tool.poetry.dependencies]
 python = "^3.9"

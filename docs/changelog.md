@@ -14,7 +14,7 @@ ___
 #### Detailed Changes
 If you pass a sequence of `params.Depends` type variables to any `*_deps` parameter in `EndpointCreator` and `crud_router`, you'll get a warning. Support will be completely removed in 0.15.0.
 
-**Full Changelog**: https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.12.0...v0.12.1
+**Full Changelog**: https://github.com/mithun2003/CRUDFastAPI/compare/v0.12.0...v0.12.1
 
 
 ## [0.12.0] - May 8, 2024
@@ -104,9 +104,9 @@ You may now pass `__in` and `__not_in` to methods that accept advanced queries:
 - version bump in pyproject.toml for 0.12.0
 
 #### New Contributors
-* [@slaarti](https://github.com/slaarti) made their first contribution in https://github.com/mithunthomas2003/CRUDFastAPI/pull/62 🎉
+* [@slaarti](https://github.com/slaarti) made their first contribution in https://github.com/mithun2003/CRUDFastAPI/pull/62 🎉
 
-**Full Changelog**: https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.11.1...v0.12.0
+**Full Changelog**: https://github.com/mithun2003/CRUDFastAPI/compare/v0.11.1...v0.12.0
 
 
 ## [0.11.1] - Apr 22, 2024
@@ -211,7 +211,7 @@ This works for both `get_joined` and `get_multi_joined`.
 #### New Contributors
 - [@JakNowy](https://github.com/JakNowy) made their first contribution in PR #51.
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.11.0...v0.11.1)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.11.0...v0.11.1)
 
 ## [0.11.0] - Apr 7, 2024
 
@@ -251,7 +251,7 @@ The `get_multi` and `get_multi_joined` methods now feature an `return_total_coun
 #### Relevant Contributors
 - [@dubusster](https://github.com/dubusster) made a notable contribution with the implementation of multiple primary keys support in PR #31.
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.10.0...v0.11.0)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.10.0...v0.11.0)
 
 ## [0.10.0] - Mar 30, 2024
 
@@ -266,7 +266,7 @@ The `get_multi` and `get_multi_joined` methods now feature an `return_total_coun
 
 ##### Select
 The `select` method constructs a SQL Alchemy `Select` statement, offering flexibility in column selection, filtering, and sorting. It is designed to chain additional SQLAlchemy methods for complex queries.
-[Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/usage/crud/#5-select) and [here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/crud/#the-select-method).
+[Docs here](https://mithun2003.github.io/CRUDFastAPI/usage/crud/#5-select) and [here](https://mithun2003.github.io/CRUDFastAPI/advanced/crud/#the-select-method).
 
 ###### Features:
 - **Column Selection**: Choose columns via a Pydantic schema.
@@ -275,7 +275,7 @@ The `select` method constructs a SQL Alchemy `Select` statement, offering flexib
 - **Chaining**: Allow for chaining with other SQLAlchemy methods for advanced query construction.
 
 ##### Improved Joins
-`JoinConfig` enhances CRUDFastAPI queries by detailing join operations between models, offering configurations like model joining, conditions, prefixes, column selection through schemas, join types, aliases, and direct filtering. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/joins/).
+`JoinConfig` enhances CRUDFastAPI queries by detailing join operations between models, offering configurations like model joining, conditions, prefixes, column selection through schemas, join types, aliases, and direct filtering. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/joins/).
 
 #### Applying Joins in CRUDFastAPI Methods
 Detailed explanations and examples are provided for using joins in `count`, `get_joined`, and `get_multi_joined` methods to achieve complex data retrieval, including handling of many-to-many relationships.
@@ -289,7 +289,7 @@ Detailed explanations and examples are provided for using joins in `count`, `get
 #### New Contributors
 - [@dubusster](https://github.com/dubusster) made their first contribution in PR #28.
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.9.1...v0.10.0)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.9.1...v0.10.0)
 
 ___
 
@@ -301,15 +301,15 @@ ___
 #### Detailed Changes
 
 ##### Alias Support for Complex Joins
-With the introduction of alias support, `get_joined` and `get_multi_joined` methods now allow for more complex queries, particularly beneficial in scenarios requiring self-joins or multiple joins on the same table. Aliases help to avoid conflicts and ambiguity by providing unique identifiers for the same model in different join contexts. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/joins/#complex-joins-using-joinconfig).
+With the introduction of alias support, `get_joined` and `get_multi_joined` methods now allow for more complex queries, particularly beneficial in scenarios requiring self-joins or multiple joins on the same table. Aliases help to avoid conflicts and ambiguity by providing unique identifiers for the same model in different join contexts. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/joins/#complex-joins-using-joinconfig).
 
 ###### Example: Multiple Joins with Aliases
-To demonstrate the use of aliases, consider a task management system where tasks are associated with both an owner and an assigned user from the same `UserModel`. Aliases enable joining the `UserModel` twice under different contexts - as an owner and an assigned user. This example showcases how to set up aliases using the `aliased` function and incorporate them into your `JoinConfig` for clear and conflict-free query construction. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/crud/#example-joining-the-same-model-multiple-times).
+To demonstrate the use of aliases, consider a task management system where tasks are associated with both an owner and an assigned user from the same `UserModel`. Aliases enable joining the `UserModel` twice under different contexts - as an owner and an assigned user. This example showcases how to set up aliases using the `aliased` function and incorporate them into your `JoinConfig` for clear and conflict-free query construction. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/crud/#example-joining-the-same-model-multiple-times).
 
 #### What's Changed
-- Introduction of aliases in joins, improving query flexibility and expressiveness, as detailed by @mithunthomas2003 in PR #29.
+- Introduction of aliases in joins, improving query flexibility and expressiveness, as detailed by @mithun2003 in PR #29.
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.9.0...v0.9.1)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.9.0...v0.9.1)
 
 ___
 
@@ -321,7 +321,7 @@ ___
 #### Detailed Changes
 
 ##### Multi-Model Join Capabilities
-The `get_joined` and `get_multi_joined` methods have been upgraded to accommodate joins involving multiple models. This functionality is facilitated through the `joins_config` parameter, allowing for the specification of multiple `JoinConfig` instances. Each instance represents a unique join configuration, broadening the scope for complex data relationship management within CRUDFastAPI. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/joins/).
+The `get_joined` and `get_multi_joined` methods have been upgraded to accommodate joins involving multiple models. This functionality is facilitated through the `joins_config` parameter, allowing for the specification of multiple `JoinConfig` instances. Each instance represents a unique join configuration, broadening the scope for complex data relationship management within CRUDFastAPI. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/joins/).
 
 ###### Example: Multi-Model Join
 A practical example involves retrieving users alongside their corresponding tier and department details. By configuring `joins_config` with appropriate `JoinConfig` instances for the `Tier` and `Department` models, users can efficiently gather comprehensive data across related models, enhancing data retrieval operations' depth and flexibility.
@@ -336,7 +336,7 @@ A practical example involves retrieving users alongside their corresponding tier
 #### New Contributors
 - [@iridescentGray](https://github.com/iridescentGray)
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.8.0...v0.9.0)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.8.0...v0.9.0)
 
 ___
 
@@ -375,7 +375,7 @@ ___
 #### Detailed Changes
 
 ##### `get_paginated` Endpoint
-This new endpoint enhances data retrieval capabilities by introducing pagination, an essential feature for handling large datasets efficiently. It supports customizable query parameters for page number and items per page, facilitating flexible data access patterns. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/endpoint/#read-paginated).
+This new endpoint enhances data retrieval capabilities by introducing pagination, an essential feature for handling large datasets efficiently. It supports customizable query parameters for page number and items per page, facilitating flexible data access patterns. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/endpoint/#read-paginated).
 
 ###### Features:
 - **Endpoint and Method**: A `GET` request to `/get_paginated`.
@@ -392,7 +392,7 @@ The introduction of the `paginated` module brings two key utility functions, `pa
 #### What's Changed
 - Deployment of pagination functionality, embodied in the `get_paginated` endpoint and the `paginated` module, to facilitate efficient data handling and retrieval.
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.6.0...v0.7.0)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.6.0...v0.7.0)
 
 ___
 
@@ -406,7 +406,7 @@ ___
 #### Detailed Changes
 
 ##### Custom `updated_at` Column
-CRUDFastAPI now supports the customization of the `updated_at` column name, providing flexibility for applications with different database schema conventions or naming practices. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/endpoint/#using-endpointcreator-and-crud_router-with-custom-soft-delete-or-update-columns).
+CRUDFastAPI now supports the customization of the `updated_at` column name, providing flexibility for applications with different database schema conventions or naming practices. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/endpoint/#using-endpointcreator-and-crud_router-with-custom-soft-delete-or-update-columns).
 
 ###### Example Configuration:
 The example demonstrates how to specify a custom column name for `updated_at` when setting up the router for an endpoint, allowing for seamless integration with existing database schemas.
@@ -414,7 +414,7 @@ The example demonstrates how to specify a custom column name for `updated_at` wh
 #### What's Changed
 - Introduction of features enhancing flexibility and usability, such as custom `updated_at` column names and the optional CRUD parameter in routing configurations.
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.5.0...v0.6.0)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.5.0...v0.6.0)
 
 ___
 
@@ -429,20 +429,20 @@ ___
 #### Detailed Changes
 
 ##### Advanced Filters
-The advanced filtering system allows for sophisticated querying with support for operators like `__gt`, `__lt`, `__gte`, and `__lte`, applicable across various CRUD operations. This feature significantly enhances the flexibility and power of data retrieval and manipulation within CRUDFastAPI. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/crud/#advanced-filters).
+The advanced filtering system allows for sophisticated querying with support for operators like `__gt`, `__lt`, `__gte`, and `__lte`, applicable across various CRUD operations. This feature significantly enhances the flexibility and power of data retrieval and manipulation within CRUDFastAPI. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/crud/#advanced-filters).
 
 ###### Examples:
 - Utilization of advanced filters for precise data fetching and aggregation.
 - Implementation examples for fetching records within specific criteria and counting records based on date ranges.
 
 ##### Custom Soft Delete Mechanisms
-CRUDFastAPI's soft delete functionality now supports customization, allowing developers to specify alternative column names for `is_deleted` and `deleted_at` fields. This adaptation enables seamless integration with existing database schemas that employ different naming conventions for soft deletion tracking. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/endpoint/#using-endpointcreator-and-crud_router-with-custom-soft-delete-or-update-columns).
+CRUDFastAPI's soft delete functionality now supports customization, allowing developers to specify alternative column names for `is_deleted` and `deleted_at` fields. This adaptation enables seamless integration with existing database schemas that employ different naming conventions for soft deletion tracking. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/endpoint/#using-endpointcreator-and-crud_router-with-custom-soft-delete-or-update-columns).
 
 ###### Example Configuration:
 - Setting up `crud_router` with custom soft delete column names, demonstrating the flexibility in adapting CRUDFastAPI to various database schema requirements.
 
 ##### Bulk Operations
-The introduction of optional bulk operations for updating and deleting records provides a more efficient way to handle large datasets, enabling mass modifications or removals with single method calls. This feature is particularly useful for applications that require frequent bulk data management tasks. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/crud/#allow-multiple-updates-and-deletes).
+The introduction of optional bulk operations for updating and deleting records provides a more efficient way to handle large datasets, enabling mass modifications or removals with single method calls. This feature is particularly useful for applications that require frequent bulk data management tasks. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/crud/#allow-multiple-updates-and-deletes).
 
 ###### Examples:
 - Demonstrating bulk update and delete operations, highlighting the capability to apply changes to multiple records based on specific criteria.
@@ -453,7 +453,7 @@ The introduction of optional bulk operations for updating and deleting records p
 #### New Contributors
 - [@YuriiMotov](https://github.com/YuriiMotov)
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.4.0...v0.5.0)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.4.0...v0.5.0)
 
 ___
 
@@ -465,12 +465,12 @@ ___
 
 ### Detailed
 
-Check the [docs for SQLModel support](https://mithunthomas2003.github.io/CRUDFastAPI/sqlmodel/).
+Check the [docs for SQLModel support](https://mithun2003.github.io/CRUDFastAPI/sqlmodel/).
 
 ### What's Changed
 - SQLModel support.
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.3.0...v0.4.0)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.3.0...v0.4.0)
 
 ___
 
@@ -483,10 +483,10 @@ ___
 - Detailed documentation on utilizing the `CustomEndpointCreator` and selectively including or excluding endpoints.
 
 ### CustomEndpointCreator
-This feature introduces the capability to extend the `EndpointCreator` class, enabling developers to define custom routes and incorporate complex logic into API endpoints. The documentation has been updated to include detailed examples and guidelines on implementing and using `CustomEndpointCreator` in projects. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/endpoint/#creating-a-custom-endpointcreator).
+This feature introduces the capability to extend the `EndpointCreator` class, enabling developers to define custom routes and incorporate complex logic into API endpoints. The documentation has been updated to include detailed examples and guidelines on implementing and using `CustomEndpointCreator` in projects. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/endpoint/#creating-a-custom-endpointcreator).
 
 ### Selective CRUD Operations
-The `crud_router` function has been enhanced with `included_methods` and `deleted_methods` parameters, offering developers precise control over which CRUD methods are included or excluded when configuring routers. This addition provides flexibility in API design, allowing for the creation of tailored endpoint setups that meet specific project requirements. [Docs here](https://mithunthomas2003.github.io/CRUDFastAPI/advanced/endpoint/#selective-crud-operations).
+The `crud_router` function has been enhanced with `included_methods` and `deleted_methods` parameters, offering developers precise control over which CRUD methods are included or excluded when configuring routers. This addition provides flexibility in API design, allowing for the creation of tailored endpoint setups that meet specific project requirements. [Docs here](https://mithun2003.github.io/CRUDFastAPI/advanced/endpoint/#selective-crud-operations).
 
 ## Detailed Changes
 
@@ -508,7 +508,7 @@ Examples for using `included_methods` and `deleted_methods` illustrate how to sp
 !!! WARNING
     Providing both `included_methods` and `deleted_methods` will result in a ValueError.
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.2.1...v0.3.0)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.2.1...v0.3.0)
 
 ___
 
@@ -519,14 +519,14 @@ ___
 - Documentation has been thoroughly updated and refined, including fixes for previous inaccuracies and the addition of more detailed explanations and examples.
 - Descriptions have been added to automatically generated endpoints, making the API documentation more informative and user-friendly.
 
-**Full Changelog**: [View the full changelog](https://github.com/mithunthomas2003/CRUDFastAPI/compare/v0.2.0...v0.2.1)
+**Full Changelog**: [View the full changelog](https://github.com/mithun2003/CRUDFastAPI/compare/v0.2.0...v0.2.1)
 
 ___
 
 ## [0.2.0] - Jan 25, 2024
 
 ### Added
-- [Docs Published!](https://mithunthomas2003.github.io/CRUDFastAPI/)
+- [Docs Published!](https://mithun2003.github.io/CRUDFastAPI/)
 
 ___
 
