@@ -187,11 +187,11 @@ class CRUDFastAPI(
         "ne": lambda column, value: column.__ne__(value),
         "between": lambda column, value: column.between(*value),
         "in": lambda column, value: column.in_(value),
-        "not_in": lambda column, value: ~column.in_(value),
+        "not_in": lambda column, value: column.not_in(value),
         "is": lambda column, value: column.is_(value),
         "is_not": lambda column, value: column.is_not(value),
         "like": lambda column, value: column.like(value),
-        "notlike": lambda column, value: ~column.like(value),
+        "notlike": lambda column, value: column.notlike(value),
         "ilike": lambda column, value: column.ilike(value),
         "notilike": lambda column, value: ~column.ilike(value),
         "startswith": lambda column, value: column.startswith(value),
@@ -224,7 +224,8 @@ class CRUDFastAPI(
                 column = getattr(model, field_name, None)
                 if column is None:
                     raise ValueError(f"Invalid filter column: {field_name}")
-
+                if op in ["not_in", "in", "between"]:
+                    raise ValueError("in filter must be tuple, list or set")
                 if op in self._SUPPORTED_FILTERS:
                     filters.append(self._SUPPORTED_FILTERS[op](column, value))
                 else:
@@ -1294,6 +1295,9 @@ class CRUDFastAPI(
         if (limit is not None and limit < 0) or offset < 0:
             raise ValueError("Limit and offset must be non-negative.")
 
+        if join_on is None:
+            join_on = _auto_detect_join_condition(self.model, join_model)
+
         primary_select = _extract_matching_columns_from_schema(
             model=self.model, schema=schema_to_select
         )
@@ -1304,8 +1308,7 @@ class CRUDFastAPI(
             join_definitions.append(
                 JoinConfig(
                     model=join_model,
-                    join_on=join_on
-                    or _auto_detect_join_condition(self.model, join_model),
+                    join_on=join_on,
                     join_prefix=join_prefix,
                     schema_to_select=join_schema_to_select,
                     join_type=join_type,
