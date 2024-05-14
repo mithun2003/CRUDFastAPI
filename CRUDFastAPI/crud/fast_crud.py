@@ -179,6 +179,27 @@ class CRUDFastAPI(
         ```
     """
 
+    _SUPPORTED_FILTERS = {
+        "gt": lambda column, value: column.__gt__(value),
+        "lt": lambda column, value: column.__lt__(value),
+        "gte": lambda column, value: column.__ge__(value),
+        "lte": lambda column, value: column.__le__(value),
+        "ne": lambda column, value: column.__ne__(value),
+        "between": lambda column, value: column.between(*value),
+        "in": lambda column, value: column.in_(value),
+        "not_in": lambda column, value: ~column.in_(value),
+        "is": lambda column, value: column.is_(value),
+        "is_not": lambda column, value: column.is_not(value),
+        "like": lambda column, value: column.like(value),
+        "notlike": lambda column, value: ~column.like(value),
+        "ilike": lambda column, value: column.ilike(value),
+        "notilike": lambda column, value: ~column.ilike(value),
+        "startswith": lambda column, value: column.startswith(value),
+        "endswith": lambda column, value: column.endswith(value),
+        "contains": lambda column, value: column.contains(value),
+        "match": lambda column, value: column.match(value),
+    }
+
     def __init__(
         self,
         model: type[ModelType],
@@ -196,6 +217,7 @@ class CRUDFastAPI(
     ) -> list[BinaryExpression]:
         model = model or self.model
         filters = []
+
         for key, value in kwargs.items():
             if "__" in key:
                 field_name, op = key.rsplit("__", 1)
@@ -203,26 +225,10 @@ class CRUDFastAPI(
                 if column is None:
                     raise ValueError(f"Invalid filter column: {field_name}")
 
-                if op == "gt":
-                    filters.append(column > value)
-                elif op == "lt":
-                    filters.append(column < value)
-                elif op == "gte":
-                    filters.append(column >= value)
-                elif op == "lte":
-                    filters.append(column <= value)
-                elif op == "ne":
-                    filters.append(column != value)
-                elif op == "in":
-                    if not isinstance(value, (tuple, list, set)):
-                        raise ValueError("in filter must be tuple, list or set")
-                    filters.append(column.in_(value))
-                elif op == "not_in":
-                    if not isinstance(value, (tuple, list, set)):
-                        raise ValueError("in filter must be tuple, list or set")
-                    filters.append(column.not_in(value))
-                elif op == "startswith":
-                    filters.append(column.startswith(value))
+                if op in self._SUPPORTED_FILTERS:
+                    filters.append(self._SUPPORTED_FILTERS[op](column, value))
+                else:
+                    raise ValueError(f"Unsupported filter operation: {op}")
             else:
                 column = getattr(model, key, None)
                 if column is not None:
@@ -557,7 +563,7 @@ class CRUDFastAPI(
     ) -> int:
         """
         Counts records that match specified filters, supporting advanced filtering through comparison operators:
-            '__gt' (greater than), 
+            '__gt' (greater than),
             '__lt' (less than),
             '__gte' (greater than or equal to),
             '__lte' (less than or equal to), '__ne' (not equal),
