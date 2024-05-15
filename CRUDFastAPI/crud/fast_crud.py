@@ -2,7 +2,7 @@ from typing import Any, Generic, TypeVar, Union, Optional
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import select, update, delete, func, inspect, asc, desc
+from sqlalchemy import select, update, delete, func, inspect, asc, desc, or_
 from sqlalchemy.exc import ArgumentError, MultipleResultsFound, NoResultFound
 from sqlalchemy.sql import Join
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -213,7 +213,10 @@ class CRUDFastAPI(
         self.updated_at_column = updated_at_column
 
     def _parse_filters(
-        self, model: Optional[Union[type[ModelType], AliasedClass]] = None, **kwargs
+        self,
+        model: Optional[Union[type[ModelType], AliasedClass]] = None,
+        or_filter: bool = False,
+        **kwargs,
     ) -> list[BinaryExpression]:
         model = model or self.model
         filters = []
@@ -235,7 +238,10 @@ class CRUDFastAPI(
                 if column is not None:
                     filters.append(column == value)
 
-        return filters
+        if or_filter:
+            return [or_(*filters)]
+        else:
+            return filters
 
     def _apply_sorting(
         self,
@@ -325,10 +331,11 @@ class CRUDFastAPI(
             stmt: The initial SQL statement.
             joins_config: Configurations for all joins.
             use_temporary_prefix: Whether to use or not an aditional prefix for joins. Default False.
-
+            or_filter: Whether to filter based on and/or. Default False so filter based on and
         Returns:
             Select: The modified SQL statement with joins applied.
         """
+        conditions = []
         for join in joins_config:
             model = join.alias or join.model
             join_select = _extract_matching_columns_from_schema(
@@ -339,7 +346,7 @@ class CRUDFastAPI(
                 use_temporary_prefix,
             )
             joined_model_filters = self._parse_filters(
-                model=model, **(join.filters or {})
+                model=model, **(join.filters or {}), or_filter=join.join_or_filter
             )
 
             if join.join_type == "left":
@@ -349,8 +356,11 @@ class CRUDFastAPI(
             else:
                 raise ValueError(f"Unsupported join type: {join.join_type}.")
             if joined_model_filters:
-                stmt = stmt.filter(*joined_model_filters)
-
+                conditions.append(
+                    or_(*joined_model_filters)
+                ) if join.join_or_filter else conditions.append(joined_model_filters)
+        if conditions:
+            stmt = stmt.filter(*conditions)
         return stmt
 
     async def create(
@@ -560,6 +570,7 @@ class CRUDFastAPI(
         self,
         db: AsyncSession,
         joins_config: Optional[list[JoinConfig]] = None,
+        join_or_filter: bool = False,
         **kwargs: Any,
     ) -> int:
         """
@@ -576,6 +587,7 @@ class CRUDFastAPI(
         Args:
             db: The database session to use for the operation.
             joins_config: Optional configuration for applying joins in the count query.
+            join_or_filter: Whether to filter based on and/or. Default False so filter based on and
             **kwargs: Filters to apply for the count, including field names for equality checks or with comparison operators for advanced queries.
 
         Returns:
@@ -632,7 +644,7 @@ class CRUDFastAPI(
             count = await crud.count(db, joins_config=joins_config)
             ```
         """
-        primary_filters = self._parse_filters(**kwargs)
+        primary_filters = self._parse_filters(or_filter=join_or_filter, **kwargs)
 
         if joins_config is not None:
             primary_keys = [p.name for p in _get_primary_keys(self.model)]
@@ -648,7 +660,9 @@ class CRUDFastAPI(
             for join in joins_config:
                 join_model = join.alias or join.model
                 join_filters = (
-                    self._parse_filters(model=join_model, **join.filters)
+                    self._parse_filters(
+                        model=join_model, or_filter=join.join_or_filter, **join.filters
+                    )
                     if join.filters
                     else []
                 )
@@ -665,12 +679,14 @@ class CRUDFastAPI(
                 base_query = base_query.where(*primary_filters)
 
             subquery = base_query.subquery()
+            print(base_query, subquery)
             count_query = select(func.count()).select_from(subquery)
         else:
             count_query = select(func.count()).select_from(self.model)
             if primary_filters:
                 count_query = count_query.where(*primary_filters)
 
+        print(count_query)
         total_count: Optional[int] = await db.scalar(count_query)
         if total_count is None:
             raise ValueError("Could not find the count.")
@@ -1041,6 +1057,7 @@ class CRUDFastAPI(
         join_type: str = "left",
         alias: Optional[AliasedClass[Any]] = None,
         join_filters: Optional[dict] = None,
+        join_or_filter: bool = False,
         nest_joins: bool = False,
         offset: int = 0,
         limit: Optional[int] = 100,
@@ -1073,6 +1090,7 @@ class CRUDFastAPI(
             join_type: Specifies the type of join operation to perform. Can be "left" for a left outer join or "inner" for an inner join.
             alias: An instance of `AliasedClass` for the join model, useful for self-joins or multiple joins on the same model. Result of `aliased(join_model)`.
             join_filters: Filters applied to the joined model, specified as a dictionary mapping column names to their expected values.
+            join_or_filter: A boolean field indicating whether the join is based on and/or. Default False which means join basedon and
             nest_joins: If True, nested data structures will be returned where joined model data are nested under the join_prefix as a dictionary.
             offset: The offset (number of records to skip) for pagination.
             limit: Maximum number of records to fetch in one call. Use `None` for "no limit", fetching all matching rows. Note that in order to use `limit=None`, you'll have to provide a custom endpoint to facilitate it, which you should only do if you really seriously want to allow the user to get all the data at once.
@@ -1294,7 +1312,6 @@ class CRUDFastAPI(
 
         if (limit is not None and limit < 0) or offset < 0:
             raise ValueError("Limit and offset must be non-negative.")
-
         if join_on is None:
             join_on = _auto_detect_join_condition(self.model, join_model)
 
@@ -1314,6 +1331,7 @@ class CRUDFastAPI(
                     join_type=join_type,
                     alias=alias,
                     filters=join_filters,
+                    join_or_filter=join_or_filter,
                 )
             )
 
@@ -1321,7 +1339,7 @@ class CRUDFastAPI(
             stmt=stmt, joins_config=join_definitions, use_temporary_prefix=nest_joins
         )
 
-        primary_filters = self._parse_filters(**kwargs)
+        primary_filters = self._parse_filters(or_filter=join_or_filter, **kwargs)
         if primary_filters:
             stmt = stmt.filter(*primary_filters)
 
@@ -1332,7 +1350,6 @@ class CRUDFastAPI(
             stmt = stmt.offset(offset)
         if limit is not None:
             stmt = stmt.limit(limit)
-
         result = await db.execute(stmt)
         data: list[Union[dict, BaseModel]] = []
         for row in result.mappings().all():
@@ -1360,10 +1377,12 @@ class CRUDFastAPI(
 
         if return_total_count:
             total_count: int = await self.count(
-                db=db, joins_config=joins_config, **kwargs
+                db=db,
+                joins_config=join_definitions,
+                join_or_filter=join_or_filter,
+                **kwargs,
             )
             response["total_count"] = total_count
-
         return response
 
     async def get_multi_by_cursor(

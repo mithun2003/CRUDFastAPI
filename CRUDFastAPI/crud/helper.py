@@ -15,6 +15,7 @@ class JoinConfig(NamedTuple):
     join_type: str = "left"
     alias: Optional[AliasedClass] = None
     filters: Optional[dict] = None
+    join_or_filter: bool = False
 
 
 def _extract_matching_columns_from_schema(
