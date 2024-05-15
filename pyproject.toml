@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "CRUDFastAPI"
-version = "0.0.4"
+version = "0.0.5"
 description = "CRUDFastAPI is a Python package for FastAPI, offering robust async CRUD operations and flexible endpoint creation utilities."
 authors = ["Mithun Thomas <mithunthomas003@gmail.com>"]
 license = "MIT"

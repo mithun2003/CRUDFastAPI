@@ -679,14 +679,12 @@ class CRUDFastAPI(
                 base_query = base_query.where(*primary_filters)
 
             subquery = base_query.subquery()
-            print(base_query, subquery)
             count_query = select(func.count()).select_from(subquery)
         else:
             count_query = select(func.count()).select_from(self.model)
             if primary_filters:
                 count_query = count_query.where(*primary_filters)
 
-        print(count_query)
         total_count: Optional[int] = await db.scalar(count_query)
         if total_count is None:
             raise ValueError("Could not find the count.")
