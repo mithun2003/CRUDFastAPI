@@ -1542,7 +1542,7 @@ class CRUDFastAPI(
             if timezone:
                 update_data[self.updated_at_column] = datetime.now(UTC)
             else:
-                update_data[self.updated_at_column] = datetime.now(UTC).replace(timezone=None)
+                update_data[self.updated_at_column] = datetime.now(UTC).replace(tzinfo=None)
             
 
         update_data_keys = set(update_data.keys())
