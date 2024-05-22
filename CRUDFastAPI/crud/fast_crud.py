@@ -1,5 +1,5 @@
 from typing import Any, Generic, TypeVar, Union, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import select, update, delete, func, inspect, asc, desc, or_
@@ -1481,6 +1481,7 @@ class CRUDFastAPI(
         object: Union[UpdateSchemaType, dict[str, Any]],
         allow_multiple: bool = False,
         commit: bool = True,
+        timezone: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -1500,6 +1501,7 @@ class CRUDFastAPI(
             object: A Pydantic schema or dictionary containing the update data.
             allow_multiple: If True, allows updating multiple records that match the filters. If False, raises an error if more than one record matches the filters.
             commit: If True, commits the transaction immediately. Default is True.
+            timezone: If True, add timezone in the update_at. Default is False.
             **kwargs: Filters to identify the record(s) to update, supporting advanced comparison operators for refined querying.
 
         Returns:
@@ -1537,7 +1539,11 @@ class CRUDFastAPI(
 
         updated_at_col = getattr(self.model, self.updated_at_column, None)
         if updated_at_col:
-            update_data[self.updated_at_column] = datetime.now(timezone.utc)
+            if timezone:
+                update_data[self.updated_at_column] = datetime.now(UTC)
+            else:
+                update_data[self.updated_at_column] = datetime.now(UTC).replace(timezone=None)
+            
 
         update_data_keys = set(update_data.keys())
         model_columns = {column.name for column in inspect(self.model).c}
