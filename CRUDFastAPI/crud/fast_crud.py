@@ -1310,7 +1310,7 @@ class CRUDFastAPI(
 
         if (limit is not None and limit < 0) or offset < 0:
             raise ValueError("Limit and offset must be non-negative.")
-        if join_on is None:
+        if join_on is None and joins_config is None:
             join_on = _auto_detect_join_condition(self.model, join_model)
 
         primary_select = _extract_matching_columns_from_schema(
