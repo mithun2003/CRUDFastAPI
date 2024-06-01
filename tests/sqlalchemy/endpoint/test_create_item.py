@@ -1,5 +1,5 @@
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 
@@ -21,9 +21,7 @@ async def test_create_item(client: TestClient, async_session, test_model, test_d
 
 
 @pytest.mark.asyncio
-async def test_create_item_with_multiple_primary_keys(
-    client: TestClient, async_session, multi_pk_model, test_data_multipk
-):
+async def test_create_item_with_multiple_primary_keys(client: TestClient, async_session, multi_pk_model, test_data_multipk):
     # for test_data_multipk in test_data_multipk:
     response = client.post(
         "/multi_pk/create",
@@ -32,9 +30,7 @@ async def test_create_item_with_multiple_primary_keys(
 
     assert response.status_code == 200
 
-    stmt = select(multi_pk_model).where(
-        multi_pk_model.name == test_data_multipk["name"]
-    )
+    stmt = select(multi_pk_model).where(multi_pk_model.name == test_data_multipk["name"])
 
     result = await async_session.execute(stmt)
     fetched_record = result.scalar_one_or_none()

@@ -12,9 +12,7 @@ async def test_read_paginated(client: TestClient, async_session, test_model, tes
     page = 1
     items_per_page = 5
 
-    response = client.get(
-        f"/test/get_paginated?page={page}&itemsPerPage={items_per_page}"
-    )
+    response = client.get(f"/test/get_paginated?page={page}&itemsPerPage={items_per_page}")
 
     assert response.status_code == 200
 

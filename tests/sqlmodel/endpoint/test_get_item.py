@@ -4,9 +4,7 @@ from sqlalchemy import select
 
 
 @pytest.mark.asyncio
-async def test_read_item_success(
-    client: TestClient, async_session, test_model, test_data
-):
+async def test_read_item_success(client: TestClient, async_session, test_model, test_data):
     tester_data = {"name": test_data[0]["name"], "tier_id": test_data[0]["tier_id"]}
     new_item = test_model(**tester_data)
     async_session.add(new_item)
@@ -35,9 +33,7 @@ async def test_read_item_not_found(client: TestClient, async_session, test_model
 
 
 @pytest.mark.asyncio
-async def test_read_multi_primary_key_item_success(
-    client: TestClient, async_session, multi_pk_model, test_data_multipk
-):
+async def test_read_multi_primary_key_item_success(client: TestClient, async_session, multi_pk_model, test_data_multipk):
     tester_data = test_data_multipk
     new_item = multi_pk_model(**tester_data)
     async_session.add(new_item)

@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+
 from CRUDFastAPI import EndpointCreator
 
 
@@ -26,9 +27,7 @@ def test_add_custom_route(client: TestClient, endpoint_creator: EndpointCreator)
     assert response.status_code == 422
 
 
-def test_add_custom_route_include_in_schema_false(
-    client: TestClient, endpoint_creator: EndpointCreator
-):
+def test_add_custom_route_include_in_schema_false(client: TestClient, endpoint_creator: EndpointCreator):
     endpoint_creator.add_custom_route(
         endpoint=custom_endpoint,
         path="/hidden-custom-route",

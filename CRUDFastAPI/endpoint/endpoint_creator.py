@@ -1,8 +1,8 @@
-import inspect
-from typing import Dict, Type, TypeVar, Optional, Callable, Sequence, Union
+from collections.abc import Callable, Sequence
 from enum import Enum
+from typing import Optional, TypeVar, Union
 
-from fastapi import Depends, Body, Query, APIRouter
+from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
@@ -13,7 +13,11 @@ from ..paginated.helper import compute_offset
 from ..paginated.response import paginated_response
 from .helper import (
     CRUDMethods,
+    FilterConfig,
+    _apply_model_pk,
+    _create_dynamic_filters,
     _extract_unique_columns,
+    _get_column_types,
     _get_primary_keys,
     _get_python_type,
     _inject_dependencies,
@@ -23,35 +27,6 @@ CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 UpdateSchemaInternalType = TypeVar("UpdateSchemaInternalType", bound=BaseModel)
 DeleteSchemaType = TypeVar("DeleteSchemaType", bound=BaseModel)
-
-
-def apply_model_pk(**pkeys: Dict[str, type]):
-    """
-    This decorator injects positional arguments into a CRUDFastAPI endpoint.
-    It dynamically changes the endpoint signature and allows to use
-    multiple primary keys without defining them explicitly.
-    """
-
-    def wrapper(endpoint):
-        signature = inspect.signature(endpoint)
-        parameters = [
-            p
-            for p in signature.parameters.values()
-            if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
-        ]
-        extra_positional_params = [
-            inspect.Parameter(
-                name=k, annotation=v, kind=inspect.Parameter.POSITIONAL_ONLY
-            )
-            for k, v in pkeys.items()
-        ]
-
-        endpoint.__signature__ = signature.replace(
-            parameters=extra_positional_params + parameters
-        )
-        return endpoint
-
-    return wrapper
 
 
 class EndpointCreator:
@@ -79,6 +54,7 @@ class EndpointCreator:
         endpoint_names: Optional dictionary to customize endpoint names for CRUD operations. Keys are operation types
                         ("create", "read", "update", "delete", "db_delete", "read_multi", "read_paginated"), and
                         values are the custom names to use. Unspecified operations will use default names.
+        filter_config: Optional FilterConfig instance or dictionary to configure filters for the `read_multi` and `read_paginated` endpoints.
 
     Raises:
         ValueError: If both `included_methods` and `deleted_methods` are provided.
@@ -169,28 +145,85 @@ class EndpointCreator:
         )
         endpoint_creator.add_routes_to_router()
         ```
+
+        Using filter_config with dict:
+        ```python
+        from fastapi import FastAPI
+        from CRUDFastAPI import EndpointCreator, FilterConfig
+
+        from myapp.models import MyModel
+        from myapp.schemas import CreateMyModel, UpdateMyModel
+        from myapp.database import async_session
+
+        app = FastAPI()
+        endpoint_creator = EndpointCreator(
+            session=async_session,
+            model=MyModel,
+            create_schema=CreateMyModel,
+            update_schema=UpdateMyModel,
+            filter_config=FilterConfig(filters={"id": None, "name": "default"})
+        )
+        # Adds CRUD routes with filtering capabilities
+        endpoint_creator.add_routes_to_router()
+        # Include the internal router into the FastAPI app
+        app.include_router(endpoint_creator.router, prefix="/mymodel")
+
+        # Explanation:
+        # The FilterConfig specifies that 'id' should be a query parameter with no default value
+        # and 'name' should be a query parameter with a default value of 'default'.
+        # When fetching multiple items, you can filter by these parameters.
+        # Example GET request: /mymodel/get_multi?id=1&name=example
+        ```
+
+        Using filter_config with keyword arguments:
+        ```python
+        from fastapi import FastAPI
+        from CRUDFastAPI import EndpointCreator, FilterConfig
+
+        from myapp.models import MyModel
+        from myapp.schemas: CreateMyModel, UpdateMyModel
+        from myapp.database: async_session
+
+        app = FastAPI()
+        endpoint_creator = EndpointCreator(
+            session=async_session,
+            model=MyModel,
+            create_schema=CreateMyModel,
+            update_schema=UpdateMyModel,
+            filter_config=FilterConfig(id=None, name="default")
+        )
+        # Adds CRUD routes with filtering capabilities
+        endpoint_creator.add_routes_to_router()
+        # Include the internal router into the FastAPI app
+        app.include_router(endpoint_creator.router, prefix="/mymodel")
+
+        # Explanation:
+        # The FilterConfig specifies that 'id' should be a query parameter with no default value
+        # and 'name' should be a query parameter with a default value of 'default'.
+        # When fetching multiple items, you can filter by these parameters.
+        # Example GET request: /mymodel/get_multi?id=1&name=example
+        ```
     """
 
     def __init__(
         self,
         session: Callable,
         model: type[DeclarativeBase],
-        create_schema: Type[CreateSchemaType],
-        update_schema: Type[UpdateSchemaType],
+        create_schema: type[CreateSchemaType],
+        update_schema: type[UpdateSchemaType],
         crud: Optional[CRUDFastAPI] = None,
         include_in_schema: bool = True,
-        delete_schema: Optional[Type[DeleteSchemaType]] = None,
+        delete_schema: Optional[type[DeleteSchemaType]] = None,
         path: str = "",
         tags: Optional[list[Union[str, Enum]]] = None,
         is_deleted_column: str = "is_deleted",
         deleted_at_column: str = "deleted_at",
         updated_at_column: str = "updated_at",
         endpoint_names: Optional[dict[str, str]] = None,
+        filter_config: Optional[Union[FilterConfig, dict]] = None,
     ) -> None:
         self._primary_keys = _get_primary_keys(model)
-        self._primary_keys_types = {
-            pk.name: _get_python_type(pk) for pk in self._primary_keys
-        }
+        self._primary_keys_types = {pk.name: _get_python_type(pk) for pk in self._primary_keys}
         self.primary_key_names = [pk.name for pk in self._primary_keys]
         self.session = session
         self.crud = crud or CRUDFastAPI(
@@ -220,6 +253,18 @@ class EndpointCreator:
             "read_paginated": "get_paginated",
         }
         self.endpoint_names = {**self.default_endpoint_names, **(endpoint_names or {})}
+        if filter_config:
+            if isinstance(filter_config, dict):
+                filter_config = FilterConfig(**filter_config)
+            self._validate_filter_config(filter_config)
+        self.filter_config = filter_config
+        self.column_types = _get_column_types(model)
+
+    def _validate_filter_config(self, filter_config: FilterConfig) -> None:
+        model_columns = self.crud.model_col_names
+        for key in filter_config.filters.keys():
+            if key not in model_columns:
+                raise ValueError(f"Invalid filter column '{key}': not found in model '{self.model.__name__}' columns")
 
     def _create_item(self):
         """Creates an endpoint for creating items in the database."""
@@ -236,9 +281,7 @@ class EndpointCreator:
                     value = getattr(item, col_name)
                     exists = await self.crud.exists(db, **{col_name: value})
                     if exists:  # pragma: no cover
-                        raise DuplicateValueException(
-                            f"Value {value} is already registered"
-                        )
+                        raise DuplicateValueException(f"Value {value} is already registered")
 
             return await self.crud.create(db, item)
 
@@ -247,7 +290,7 @@ class EndpointCreator:
     def _read_item(self):
         """Creates an endpoint for reading a single item from the database."""
 
-        @apply_model_pk(**self._primary_keys_types)
+        @_apply_model_pk(**self._primary_keys_types)
         async def endpoint(db: AsyncSession = Depends(self.session), **pkeys):
             item = await self.crud.get(db, **pkeys)
             if not item:  # pragma: no cover
@@ -258,43 +301,39 @@ class EndpointCreator:
 
     def _read_items(self):
         """Creates an endpoint for reading multiple items from the database."""
+        dynamic_filters = _create_dynamic_filters(self.filter_config, self.column_types)
 
         async def endpoint(
             db: AsyncSession = Depends(self.session),
             offset: int = Query(0),
             limit: int = Query(100),
+            filters: dict = Depends(dynamic_filters),
         ):
-            return await self.crud.get_multi(db, offset=offset, limit=limit)
+            return await self.crud.get_multi(db, offset=offset, limit=limit, **filters)
 
         return endpoint
 
     def _read_paginated(self):
         """Creates an endpoint for reading multiple items from the database with pagination."""
+        dynamic_filters = _create_dynamic_filters(self.filter_config, self.column_types)
 
         async def endpoint(
             db: AsyncSession = Depends(self.session),
-            page: int = Query(
-                1, alias="page", description="Page number, starting from 1"
-            ),
-            items_per_page: int = Query(
-                10, alias="itemsPerPage", description="Number of items per page"
-            ),
+            page: int = Query(1, alias="page", description="Page number, starting from 1"),
+            items_per_page: int = Query(10, alias="itemsPerPage", description="Number of items per page"),
+            filters: dict = Depends(dynamic_filters),
         ):
             offset = compute_offset(page=page, items_per_page=items_per_page)
-            crud_data = await self.crud.get_multi(
-                db, offset=offset, limit=items_per_page
-            )
+            crud_data = await self.crud.get_multi(db, offset=offset, limit=items_per_page, **filters)
 
-            return paginated_response(
-                crud_data=crud_data, page=page, items_per_page=items_per_page
-            )  # pragma: no cover
+            return paginated_response(crud_data=crud_data, page=page, items_per_page=items_per_page)  # pragma: no cover
 
         return endpoint
 
     def _update_item(self):
         """Creates an endpoint for updating an existing item in the database."""
 
-        @apply_model_pk(**self._primary_keys_types)
+        @_apply_model_pk(**self._primary_keys_types)
         async def endpoint(
             item: self.update_schema = Body(...),  # type: ignore
             db: AsyncSession = Depends(self.session),
@@ -307,7 +346,7 @@ class EndpointCreator:
     def _delete_item(self):
         """Creates an endpoint for deleting an item from the database."""
 
-        @apply_model_pk(**self._primary_keys_types)
+        @_apply_model_pk(**self._primary_keys_types)
         async def endpoint(db: AsyncSession = Depends(self.session), **pkeys):
             await self.crud.delete(db, **pkeys)
             return {"message": "Item deleted successfully"}  # pragma: no cover
@@ -323,20 +362,16 @@ class EndpointCreator:
         async session to permanently delete the item from the database.
         """
 
-        @apply_model_pk(**self._primary_keys_types)
+        @_apply_model_pk(**self._primary_keys_types)
         async def endpoint(db: AsyncSession = Depends(self.session), **pkeys):
             await self.crud.db_delete(db, **pkeys)
-            return {
-                "message": "Item permanently deleted from the database"
-            }  # pragma: no cover
+            return {"message": "Item permanently deleted from the database"}  # pragma: no cover
 
         return endpoint
 
     def _get_endpoint_name(self, operation: str) -> str:
         """Get the endpoint name for a given CRUD operation, using defaults if not overridden by the user."""
-        return self.endpoint_names.get(
-            operation, self.default_endpoint_names.get(operation, operation)
-        )
+        return self.endpoint_names.get(operation, self.default_endpoint_names.get(operation, operation))
 
     def add_routes_to_router(
         self,
@@ -405,9 +440,7 @@ class EndpointCreator:
             This method assumes 'id' is the primary key for path parameters.
         """
         if (included_methods is not None) and (deleted_methods is not None):
-            raise ValueError(
-                "Cannot use both 'included_methods' and 'deleted_methods' simultaneously."
-            )
+            raise ValueError("Cannot use both 'included_methods' and 'deleted_methods' simultaneously.")
 
         if included_methods is None:
             included_methods = [
@@ -421,9 +454,7 @@ class EndpointCreator:
             ]
         else:
             try:
-                included_methods = CRUDMethods(
-                    valid_methods=included_methods
-                ).valid_methods
+                included_methods = CRUDMethods(valid_methods=included_methods).valid_methods
             except ValidationError as e:
                 raise ValueError(f"Invalid CRUD methods in included_methods: {e}")
 
@@ -431,9 +462,7 @@ class EndpointCreator:
             deleted_methods = []
         else:
             try:
-                deleted_methods = CRUDMethods(
-                    valid_methods=deleted_methods
-                ).valid_methods
+                deleted_methods = CRUDMethods(valid_methods=deleted_methods).valid_methods
             except ValidationError as e:
                 raise ValueError(f"Invalid CRUD methods in deleted_methods: {e}")
 
@@ -480,9 +509,7 @@ class EndpointCreator:
                 description=f"Read multiple {self.model.__name__} rows from the database with a limit and an offset.",
             )
 
-        if ("read_paginated" in included_methods) and (
-            "read_paginated" not in deleted_methods
-        ):
+        if ("read_paginated" in included_methods) and ("read_paginated" not in deleted_methods):
             endpoint_name = self._get_endpoint_name("read_paginated")
             self.router.add_api_route(
                 f"{self.path}/{endpoint_name}",
@@ -518,11 +545,7 @@ class EndpointCreator:
                 description=f"{delete_description} {self.model.__name__} row from the database by its primary keys: {self.primary_key_names}.",
             )
 
-        if (
-            ("db_delete" in included_methods)
-            and ("db_delete" not in deleted_methods)
-            and self.delete_schema
-        ):
+        if ("db_delete" in included_methods) and ("db_delete" not in deleted_methods) and self.delete_schema:
             endpoint_name = self._get_endpoint_name("db_delete")
             self.router.add_api_route(
                 f"{self.path}/{endpoint_name}/{_primary_keys_path_suffix}",

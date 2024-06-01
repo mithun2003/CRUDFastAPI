@@ -1,25 +1,25 @@
-from typing import Any, Generic, TypeVar, Union, Optional
-from datetime import datetime, timezone, UTC
+from datetime import UTC, datetime
+from typing import Any, Generic, Optional, TypeVar, Union
 
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import select, update, delete, func, inspect, asc, desc, or_
-from sqlalchemy.exc import ArgumentError, MultipleResultsFound, NoResultFound
-from sqlalchemy.sql import Join
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import asc, delete, desc, func, inspect, or_, select, update
 from sqlalchemy.engine.row import Row
+from sqlalchemy.exc import ArgumentError, MultipleResultsFound, NoResultFound
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm.util import AliasedClass
+from sqlalchemy.sql import Join
 from sqlalchemy.sql.elements import BinaryExpression
 from sqlalchemy.sql.selectable import Select
 
-from .helper import (
-    _extract_matching_columns_from_schema,
-    _auto_detect_join_condition,
-    _nest_join_data,
-    JoinConfig,
-)
-
 from ..endpoint.helper import _get_primary_keys
+from .helper import (
+    JoinConfig,
+    _auto_detect_join_condition,
+    _extract_matching_columns_from_schema,
+    _nest_join_data,
+    _nest_multi_join_data,
+)
 
 ModelType = TypeVar("ModelType", bound=DeclarativeBase)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -208,9 +208,11 @@ class CRUDFastAPI(
         updated_at_column: str = "updated_at",
     ) -> None:
         self.model = model
+        self.model_col_names = [col.key for col in model.__table__.columns]
         self.is_deleted_column = is_deleted_column
         self.deleted_at_column = deleted_at_column
         self.updated_at_column = updated_at_column
+        self._primary_keys = _get_primary_keys(self.model)
 
     def _parse_filters(
         self,
@@ -294,19 +296,13 @@ class CRUDFastAPI(
                 if not isinstance(sort_orders, list):
                     sort_orders = [sort_orders] * len(sort_columns)
                 if len(sort_columns) != len(sort_orders):
-                    raise ValueError(
-                        "The length of sort_columns and sort_orders must match."
-                    )
+                    raise ValueError("The length of sort_columns and sort_orders must match.")
 
                 for idx, order in enumerate(sort_orders):
                     if order not in ["asc", "desc"]:
-                        raise ValueError(
-                            f"Invalid sort order: {order}. Only 'asc' or 'desc' are allowed."
-                        )
+                        raise ValueError(f"Invalid sort order: {order}. Only 'asc' or 'desc' are allowed.")
 
-            validated_sort_orders = (
-                ["asc"] * len(sort_columns) if not sort_orders else sort_orders
-            )
+            validated_sort_orders = ["asc"] * len(sort_columns) if not sort_orders else sort_orders
 
             for idx, column_name in enumerate(sort_columns):
                 column = getattr(self.model, column_name, None)
@@ -330,7 +326,7 @@ class CRUDFastAPI(
         Args:
             stmt: The initial SQL statement.
             joins_config: Configurations for all joins.
-            use_temporary_prefix: Whether to use or not an aditional prefix for joins. Default False.
+            use_temporary_prefix: Whether to use or not an additional prefix for joins. Default False.
             or_filter: Whether to filter based on and/or. Default False so filter based on and
         Returns:
             Select: The modified SQL statement with joins applied.
@@ -345,9 +341,7 @@ class CRUDFastAPI(
                 join.alias,
                 use_temporary_prefix,
             )
-            joined_model_filters = self._parse_filters(
-                model=model, **(join.filters or {}), or_filter=join.join_or_filter
-            )
+            joined_model_filters = self._parse_filters(model=model, **(join.filters or {}), or_filter=join.join_or_filter)
 
             if join.join_type == "left":
                 stmt = stmt.outerjoin(model, join.join_on).add_columns(*join_select)
@@ -356,16 +350,12 @@ class CRUDFastAPI(
             else:
                 raise ValueError(f"Unsupported join type: {join.join_type}.")
             if joined_model_filters:
-                conditions.append(
-                    or_(*joined_model_filters)
-                ) if join.join_or_filter else conditions.append(joined_model_filters)
+                conditions.append(or_(*joined_model_filters)) if join.join_or_filter else conditions.append(joined_model_filters)
         if conditions:
             stmt = stmt.filter(*conditions)
         return stmt
 
-    async def create(
-        self, db: AsyncSession, object: CreateSchemaType, commit: bool = True
-    ) -> ModelType:
+    async def create(self, db: AsyncSession, object: CreateSchemaType, commit: bool = True) -> ModelType:
         """
         Create a new record in the database.
 
@@ -440,9 +430,7 @@ class CRUDFastAPI(
             This method does not execute the generated SQL statement.
             Use `db.execute(stmt)` to run the query and fetch results.
         """
-        to_select = _extract_matching_columns_from_schema(
-            model=self.model, schema=schema_to_select
-        )
+        to_select = _extract_matching_columns_from_schema(model=self.model, schema=schema_to_select)
         filters = self._parse_filters(**kwargs)
         stmt = select(*to_select).filter(*filters)
 
@@ -474,6 +462,7 @@ class CRUDFastAPI(
         Args:
             db: The database session to use for the operation.
             schema_to_select: Optional Pydantic schema for selecting specific columns.
+            return_as_model: If True, converts the fetched data to Pydantic models based on schema_to_select. Defaults to False.
             one_or_none: Flag to get strictly one or no result. Multiple results are not allowed.
             **kwargs: Filters to apply to the query, using field names for direct matches or appending comparison operators for advanced queries.
 
@@ -514,10 +503,52 @@ class CRUDFastAPI(
         if not return_as_model:
             return out
         if not schema_to_select:
-            raise ValueError(
-                "schema_to_select must be provided when return_as_model is True."
-            )
+            raise ValueError("schema_to_select must be provided when return_as_model is True.")
         return schema_to_select(**out)
+
+    def _get_pk_dict(self, instance):
+        return {pk.name: getattr(instance, pk.name) for pk in self._primary_keys}
+
+    async def upsert(
+        self,
+        db: AsyncSession,
+        instance: Union[UpdateSchemaType, CreateSchemaType],
+        schema_to_select: Optional[type[BaseModel]] = None,
+        return_as_model: bool = False,
+    ) -> Union[BaseModel, dict[str, Any], None]:
+        """Update the instance or create it if it doesn't exists.
+        Note: This method will perform two transactions to the database (get and create or update).
+
+        Args:
+            db (AsyncSession): The database session to use for the operation.
+            instance (Union[UpdateSchemaType, type[BaseModel]]): A Pydantic schema representing the instance.
+            schema_to_select (Optional[type[BaseModel]], optional): Optional Pydantic schema for selecting specific columns. Defaults to None.
+            return_as_model (bool, optional): If True, converts the fetched data to Pydantic models based on schema_to_select. Defaults to False.
+
+        Returns:
+            BaseModel: the created or updated instance
+        """
+        _pks = self._get_pk_dict(instance)
+        schema_to_select = schema_to_select or type(instance)
+        db_instance = await self.get(
+            db,
+            schema_to_select=schema_to_select,
+            return_as_model=return_as_model,
+            **_pks,
+        )
+        if db_instance is None:
+            db_instance = await self.create(db, instance)  # type: ignore
+            db_instance = schema_to_select.model_validate(db_instance, from_attributes=True)
+        else:
+            await self.update(db, instance)  # type: ignore
+            db_instance = await self.get(
+                db,
+                schema_to_select=schema_to_select,
+                return_as_model=return_as_model,
+                **_pks,
+            )
+
+        return db_instance
 
     async def exists(self, db: AsyncSession, **kwargs: Any) -> bool:
         """
@@ -649,23 +680,13 @@ class CRUDFastAPI(
         if joins_config is not None:
             primary_keys = [p.name for p in _get_primary_keys(self.model)]
             if not any(primary_keys):  # pragma: no cover
-                raise ValueError(
-                    f"The model '{self.model.__name__}' does not have a primary key defined, which is required for counting with joins."
-                )
-            to_select = [
-                getattr(self.model, pk).label(f"distinct_{pk}") for pk in primary_keys
-            ]
+                raise ValueError(f"The model '{self.model.__name__}' does not have a primary key defined, which is required for counting with joins.")
+            to_select = [getattr(self.model, pk).label(f"distinct_{pk}") for pk in primary_keys]
             base_query = select(*to_select)
 
             for join in joins_config:
                 join_model = join.alias or join.model
-                join_filters = (
-                    self._parse_filters(
-                        model=join_model, or_filter=join.join_or_filter, **join.filters
-                    )
-                    if join.filters
-                    else []
-                )
+                join_filters = self._parse_filters(model=join_model, or_filter=join.join_or_filter, **join.filters) if join.filters else []
 
                 if join.join_type == "inner":
                     base_query = base_query.join(join_model, join.join_on)
@@ -788,16 +809,12 @@ class CRUDFastAPI(
 
         if return_as_model:
             if not schema_to_select:
-                raise ValueError(
-                    "schema_to_select must be provided when return_as_model is True."
-                )
+                raise ValueError("schema_to_select must be provided when return_as_model is True.")
             try:
                 model_data = [schema_to_select(**row) for row in data]
                 response["data"] = model_data
             except ValidationError as e:
-                raise ValueError(
-                    f"Data validation error for schema {schema_to_select.__name__}: {e}"
-                )
+                raise ValueError(f"Data validation error for schema {schema_to_select.__name__}: {e}")
 
         return response
 
@@ -812,8 +829,10 @@ class CRUDFastAPI(
         join_type: str = "left",
         alias: Optional[AliasedClass] = None,
         join_filters: Optional[dict] = None,
+        join_or_filter: bool = False,
         joins_config: Optional[list[JoinConfig]] = None,
         nest_joins: bool = False,
+        relationship_type: Optional[str] = None,
         **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
         """
@@ -839,8 +858,10 @@ class CRUDFastAPI(
             join_type: Specifies the type of join operation to perform. Can be "left" for a left outer join or "inner" for an inner join.
             alias: An instance of `AliasedClass` for the join model, useful for self-joins or multiple joins on the same model. Result of `aliased(join_model)`.
             join_filters: Filters applied to the joined model, specified as a dictionary mapping column names to their expected values.
+            join_or_filter: A boolean field indicating whether the join is based on and/or. Default False which means join based on 'and'.
             joins_config: A list of JoinConfig instances, each specifying a model to join with, join condition, optional prefix for column names, schema for selecting specific columns, and the type of join. This parameter enables support for multiple joins.
             nest_joins: If True, nested data structures will be returned where joined model data are nested under the join_prefix as a dictionary.
+            relationship_type: Specifies the relationship type, such as 'one-to-one' or 'one-to-many'. Used to determine how to nest the joined data. If None, uses one-to-one.
             **kwargs: Filters to apply to the primary model query, supporting advanced comparison operators for refined searching.
 
         Returns:
@@ -996,13 +1017,35 @@ class CRUDFastAPI(
             )
             # Expect 'result' to have 'tier' and 'dept' as nested dictionaries
             ```
-        """
-        if joins_config and (
-            join_model or join_prefix or join_on or join_schema_to_select or alias
-        ):
-            raise ValueError(
-                "Cannot use both single join parameters and joins_config simultaneously."
+
+            Example using one-to-one relationship:
+            ```python
+            result = await crud_user.get_joined(
+                db=session,
+                join_model=Profile,
+                join_on=User.profile_id == Profile.id,
+                schema_to_select=UserSchema,
+                join_schema_to_select=ProfileSchema,
+                relationship_type='one-to-one' # note that this is the default behavior
             )
+            # Expect 'result' to have 'profile' as a nested dictionary
+            ```
+
+            Example using one-to-many relationship:
+            ```python
+            result = await crud_user.get_joined(
+                db=session,
+                join_model=Post,
+                join_on=User.id == Post.user_id,
+                schema_to_select=UserSchema,
+                join_schema_to_select=PostSchema,
+                relationship_type='one-to-many',
+                nest_joins=True
+            )
+            # Expect 'result' to have 'posts' as a nested list of dictionaries
+        """
+        if joins_config and (join_model or join_prefix or join_on or join_schema_to_select or alias):
+            raise ValueError("Cannot use both single join parameters and joins_config simultaneously.")
         elif not joins_config and not join_model:
             raise ValueError("You need one of join_model or joins_config.")
 
@@ -1023,24 +1066,40 @@ class CRUDFastAPI(
                     join_type=join_type,
                     alias=alias,
                     filters=join_filters,
+                    join_or_filter=join_or_filter,
+                    relationship_type=relationship_type,
                 )
             )
 
-        stmt = self._prepare_and_apply_joins(
-            stmt=stmt, joins_config=join_definitions, use_temporary_prefix=nest_joins
-        )
-        primary_filters = self._parse_filters(**kwargs)
+        stmt = self._prepare_and_apply_joins(stmt=stmt, joins_config=join_definitions, use_temporary_prefix=nest_joins)
+        primary_filters = self._parse_filters(or_filter=join_or_filter, **kwargs)
         if primary_filters:
             stmt = stmt.filter(*primary_filters)
 
-        db_row = await db.execute(stmt)
-        result: Optional[Row] = db_row.first()
-        if result is not None:
-            data: dict = dict(result._mapping)
-            if nest_joins:
-                data = _nest_join_data(data, join_definitions)
+        db_rows = await db.execute(stmt)
+        if any(join.relationship_type == "one-to-many" for join in join_definitions):
+            if nest_joins is False:  # pragma: no cover
+                raise ValueError("Cannot use one-to-many relationship with nest_joins=False")
+            results = db_rows.fetchall()
+            data_list = [dict(row._mapping) for row in results]
+        else:
+            result = db_rows.first()
+            if result is not None:
+                data_list = [dict(result._mapping)]
+            else:
+                data_list = []
 
-            return data
+        if data_list:
+            if nest_joins:
+                nested_data: dict = {}
+                for data in data_list:
+                    nested_data = _nest_join_data(
+                        data,
+                        join_definitions,
+                        nested_data=nested_data,
+                    )
+                return nested_data
+            return data_list[0]
 
         return None
 
@@ -1064,6 +1123,7 @@ class CRUDFastAPI(
         return_as_model: bool = False,
         joins_config: Optional[list[JoinConfig]] = None,
         return_total_count: bool = True,
+        relationship_type: Optional[str] = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
         """
@@ -1088,7 +1148,7 @@ class CRUDFastAPI(
             join_type: Specifies the type of join operation to perform. Can be "left" for a left outer join or "inner" for an inner join.
             alias: An instance of `AliasedClass` for the join model, useful for self-joins or multiple joins on the same model. Result of `aliased(join_model)`.
             join_filters: Filters applied to the joined model, specified as a dictionary mapping column names to their expected values.
-            join_or_filter: A boolean field indicating whether the join is based on and/or. Default False which means join basedon and
+            join_or_filter: A boolean field indicating whether the join is based on and/or. Default False which means join based on 'and'.
             nest_joins: If True, nested data structures will be returned where joined model data are nested under the join_prefix as a dictionary.
             offset: The offset (number of records to skip) for pagination.
             limit: Maximum number of records to fetch in one call. Use `None` for "no limit", fetching all matching rows. Note that in order to use `limit=None`, you'll have to provide a custom endpoint to facilitate it, which you should only do if you really seriously want to allow the user to get all the data at once.
@@ -1097,6 +1157,7 @@ class CRUDFastAPI(
             return_as_model: If True, converts the fetched data to Pydantic models based on schema_to_select. Defaults to False.
             joins_config: List of JoinConfig instances for specifying multiple joins. Each instance defines a model to join with, join condition, optional prefix for column names, schema for selecting specific columns, and join type.
             return_total_count: If True, also returns the total count of rows with the selected filters. Useful for pagination.
+            relationship_type: Specifies the relationship type, such as 'one-to-one' or 'one-to-many'. Used to determine how to nest the joined data. If None, uses one-to-one.
             **kwargs: Filters to apply to the primary query, including advanced comparison operators for refined searching.
 
         Returns:
@@ -1298,24 +1359,47 @@ class CRUDFastAPI(
                 sort_orders='asc'
             )
         ```
+
+        Example using one-to-one relationship:
+        ```python
+        users = await crud_user.get_multi_joined(
+            db=session,
+            join_model=Profile,
+            join_on=User.profile_id == Profile.id,
+            schema_to_select=UserSchema,
+            join_schema_to_select=ProfileSchema,
+            relationship_type='one-to-one', # note that this is the default behavior
+            offset=0,
+            limit=10
+        )
+        # Expect 'profile' to be nested as a dictionary under each user
+        ```
+
+        Example using one-to-many relationship:
+        ```python
+        users = await crud_user.get_multi_joined(
+            db=session,
+            join_model=Post,
+            join_on=User.id == Post.user_id,
+            schema_to_select=UserSchema,
+            join_schema_to_select=PostSchema,
+            relationship_type='one-to-many',
+            nest_joins=True,
+            offset=0,
+            limit=10
+        )
+        # Expect 'posts' to be nested as a list of dictionaries under each user
+        ```
         """
-        if joins_config and (
-            join_model or join_prefix or join_on or join_schema_to_select or alias
-        ):
-            raise ValueError(
-                "Cannot use both single join parameters and joins_config simultaneously."
-            )
+        if joins_config and (join_model or join_prefix or join_on or join_or_filter or join_schema_to_select or alias or relationship_type):
+            raise ValueError("Cannot use both single join parameters and joins_config simultaneously.")
         elif not joins_config and not join_model:
             raise ValueError("You need one of join_model or joins_config.")
 
         if (limit is not None and limit < 0) or offset < 0:
             raise ValueError("Limit and offset must be non-negative.")
-        if join_on is None and joins_config is None:
-            join_on = _auto_detect_join_condition(self.model, join_model)
 
-        primary_select = _extract_matching_columns_from_schema(
-            model=self.model, schema=schema_to_select
-        )
+        primary_select = _extract_matching_columns_from_schema(model=self.model, schema=schema_to_select)
         stmt: Select = select(*primary_select)
 
         join_definitions = joins_config if joins_config else []
@@ -1323,19 +1407,18 @@ class CRUDFastAPI(
             join_definitions.append(
                 JoinConfig(
                     model=join_model,
-                    join_on=join_on,
+                    join_on=join_on or _auto_detect_join_condition(self.model, join_model),
                     join_prefix=join_prefix,
                     schema_to_select=join_schema_to_select,
                     join_type=join_type,
                     alias=alias,
                     filters=join_filters,
                     join_or_filter=join_or_filter,
+                    relationship_type=relationship_type,
                 )
             )
 
-        stmt = self._prepare_and_apply_joins(
-            stmt=stmt, joins_config=join_definitions, use_temporary_prefix=nest_joins
-        )
+        stmt = self._prepare_and_apply_joins(stmt=stmt, joins_config=join_definitions, use_temporary_prefix=nest_joins)
 
         primary_filters = self._parse_filters(or_filter=join_or_filter, **kwargs)
         if primary_filters:
@@ -1354,24 +1437,35 @@ class CRUDFastAPI(
             row_dict = dict(row)
 
             if nest_joins:
-                row_dict = _nest_join_data(row_dict, join_definitions)
+                row_dict = _nest_join_data(
+                    data=row_dict,
+                    join_definitions=join_definitions,
+                )
 
             if return_as_model:
                 if schema_to_select is None:
-                    raise ValueError(
-                        "schema_to_select must be provided when return_as_model is True."
-                    )
+                    raise ValueError("schema_to_select must be provided when return_as_model is True.")
                 try:
                     model_instance = schema_to_select(**row_dict)
                     data.append(model_instance)
                 except ValidationError as e:
-                    raise ValueError(
-                        f"Data validation error for schema {schema_to_select.__name__}: {e}"
-                    )
+                    raise ValueError(f"Data validation error for schema {schema_to_select.__name__}: {e}")
             else:
                 data.append(row_dict)
 
-        response: dict[str, Any] = {"data": data}
+        if nest_joins and any(join.relationship_type == "one-to-many" for join in join_definitions):
+            nested_data = _nest_multi_join_data(
+                base_primary_key=self._primary_keys[0].name,
+                data=data,
+                joins_config=join_definitions,
+                return_as_model=return_as_model,
+                schema_to_select=schema_to_select if return_as_model else None,
+                nested_schema_to_select={(join.join_prefix.rstrip("_") if join.join_prefix else join.model.__name__): join.schema_to_select for join in join_definitions if join.schema_to_select},
+            )
+        else:
+            nested_data = data
+
+        response: dict[str, Any] = {"data": nested_data}
 
         if return_total_count:
             total_count: int = await self.count(
@@ -1456,11 +1550,7 @@ class CRUDFastAPI(
             else:
                 stmt = stmt.filter(getattr(self.model, sort_column) < cursor)
 
-        stmt = stmt.order_by(
-            asc(getattr(self.model, sort_column))
-            if sort_order == "asc"
-            else desc(getattr(self.model, sort_column))
-        )
+        stmt = stmt.order_by(asc(getattr(self.model, sort_column)) if sort_order == "asc" else desc(getattr(self.model, sort_column)))
         stmt = stmt.limit(limit)
 
         result = await db.execute(stmt)
@@ -1528,9 +1618,7 @@ class CRUDFastAPI(
             ```
         """
         if not allow_multiple and (total_count := await self.count(db, **kwargs)) > 1:
-            raise MultipleResultsFound(
-                f"Expected exactly one record to update, found {total_count}."
-            )
+            raise MultipleResultsFound(f"Expected exactly one record to update, found {total_count}.")
 
         if isinstance(object, dict):
             update_data = object
@@ -1543,7 +1631,6 @@ class CRUDFastAPI(
                 update_data[self.updated_at_column] = datetime.now(UTC)
             else:
                 update_data[self.updated_at_column] = datetime.now(UTC).replace(tzinfo=None)
-            
 
         update_data_keys = set(update_data.keys())
         model_columns = {column.name for column in inspect(self.model).c}
@@ -1605,9 +1692,7 @@ class CRUDFastAPI(
             ```
         """
         if not allow_multiple and (total_count := await self.count(db, **kwargs)) > 1:
-            raise MultipleResultsFound(
-                f"Expected exactly one record to delete, found {total_count}."
-            )
+            raise MultipleResultsFound(f"Expected exactly one record to delete, found {total_count}.")
 
         filters = self._parse_filters(**kwargs)
         stmt = delete(self.model).filter(*filters)
@@ -1667,11 +1752,9 @@ class CRUDFastAPI(
         """
         filters = self._parse_filters(**kwargs)
         if db_row:
-            if hasattr(db_row, self.is_deleted_column) and hasattr(
-                db_row, self.deleted_at_column
-            ):
+            if hasattr(db_row, self.is_deleted_column) and hasattr(db_row, self.deleted_at_column):
                 setattr(db_row, self.is_deleted_column, True)
-                setattr(db_row, self.deleted_at_column, datetime.now(timezone.utc))
+                setattr(db_row, self.deleted_at_column, datetime.now(UTC))
                 if commit:
                     await db.commit()
             else:
@@ -1684,16 +1767,10 @@ class CRUDFastAPI(
         if total_count == 0:
             raise NoResultFound("No record found to delete.")
         if not allow_multiple and total_count > 1:
-            raise MultipleResultsFound(
-                f"Expected exactly one record to delete, found {total_count}."
-            )
+            raise MultipleResultsFound(f"Expected exactly one record to delete, found {total_count}.")
 
-        if self.is_deleted_column in self.model.__table__.columns:
-            update_stmt = (
-                update(self.model)
-                .filter(*filters)
-                .values(is_deleted=True, deleted_at=datetime.now(timezone.utc))
-            )
+        if self.is_deleted_column in self.model_col_names:
+            update_stmt = update(self.model).filter(*filters).values(is_deleted=True, deleted_at=datetime.now(UTC))
             await db.execute(update_stmt)
         else:
             delete_stmt = delete(self.model).filter(*filters)

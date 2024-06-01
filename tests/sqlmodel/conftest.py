@@ -1,20 +1,19 @@
+from datetime import datetime
 from typing import Optional
 
 import pytest
 import pytest_asyncio
-from datetime import datetime
-
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from pydantic import ConfigDict
-from sqlmodel import SQLModel, Field, Relationship
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pydantic import ConfigDict
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import func
+from sqlmodel import Field, Relationship, SQLModel
 
+from CRUDFastAPI import EndpointCreator
 from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
 from CRUDFastAPI.endpoint.crud_router import crud_router
-from CRUDFastAPI import EndpointCreator
 
 
 class MultiPKModel(SQLModel, table=True):
@@ -75,9 +74,7 @@ class Project(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     description: Optional[str] = None
-    participants: list["Participant"] = Relationship(
-        back_populates="projects", link_model=ProjectsParticipantsAssociation
-    )
+    participants: list["Participant"] = Relationship(back_populates="projects", link_model=ProjectsParticipantsAssociation)
 
 
 class Participant(SQLModel, table=True):
@@ -85,9 +82,7 @@ class Participant(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     role: Optional[str] = None
-    projects: list["Project"] = Relationship(
-        back_populates="participants", link_model=ProjectsParticipantsAssociation
-    )
+    projects: list["Project"] = Relationship(back_populates="participants", link_model=ProjectsParticipantsAssociation)
 
 
 class CreateSchemaTest(SQLModel):
@@ -102,12 +97,8 @@ class BookingModel(SQLModel, table=True):
     owner_id: int = Field(default=None, foreign_key="test.id")
     user_id: int = Field(default=None, foreign_key="test.id")
     booking_date: datetime
-    owner: "ModelTest" = Relationship(
-        sa_relationship_kwargs={"foreign_keys": "BookingModel.owner_id"}
-    )
-    user: "ModelTest" = Relationship(
-        sa_relationship_kwargs={"foreign_keys": "BookingModel.user_id"}
-    )
+    owner: "ModelTest" = Relationship(sa_relationship_kwargs={"foreign_keys": "BookingModel.owner_id"})
+    user: "ModelTest" = Relationship(sa_relationship_kwargs={"foreign_keys": "BookingModel.user_id"})
 
 
 class ReadSchemaTest(SQLModel):
@@ -156,14 +147,10 @@ class MultiPkSchema(SQLModel):
     test_id: int = None
 
 
-async_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:", echo=True, future=True
-)
+async_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=True, future=True)
 
 
-local_session = sessionmaker(
-    bind=async_engine, class_=AsyncSession, expire_on_commit=False
-)
+local_session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 def get_session_local():

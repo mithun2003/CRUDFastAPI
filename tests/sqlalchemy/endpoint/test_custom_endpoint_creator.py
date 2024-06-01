@@ -1,10 +1,12 @@
-from typing import Optional, Callable
+from collections.abc import Callable
+from typing import Optional
 
 import pytest
-from fastapi.testclient import TestClient
 from fastapi import Depends
+from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from CRUDFastAPI import CRUDFastAPI, crud_router, EndpointCreator
+
+from CRUDFastAPI import CRUDFastAPI, EndpointCreator, crud_router
 
 from ...sqlalchemy.conftest import get_session_local
 
@@ -49,9 +51,7 @@ class CustomEndpointCreator(EndpointCreator):
 
 
 @pytest.mark.asyncio
-async def test_custom_endpoint_creator(
-    client: TestClient, async_session, test_model, create_schema, update_schema
-):
+async def test_custom_endpoint_creator(client: TestClient, async_session, test_model, create_schema, update_schema):
     custom_router = crud_router(
         session=get_session_local,
         model=test_model,

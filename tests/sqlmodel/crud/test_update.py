@@ -1,11 +1,12 @@
-from datetime import datetime, timezone
-import pytest
+from datetime import UTC, datetime
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound
 
 from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
-from ...sqlmodel.conftest import ModelTest, UpdateSchemaTest, ModelTestWithTimestamp
+
+from ...sqlmodel.conftest import ModelTest, ModelTestWithTimestamp, UpdateSchemaTest
 
 
 @pytest.mark.asyncio
@@ -19,9 +20,7 @@ async def test_update_successful(async_session, test_data):
     updated_data = {"name": "Updated Name"}
     await crud.update(db=async_session, object=updated_data, id=some_existing_id)
 
-    updated_record = await async_session.execute(
-        select(ModelTest).where(ModelTest.id == some_existing_id)
-    )
+    updated_record = await async_session.execute(select(ModelTest).where(ModelTest.id == some_existing_id))
     assert updated_record.scalar_one().name == "Updated Name"
 
 
@@ -36,9 +35,7 @@ async def test_update_various_data(async_session, test_data):
     updated_data = {"name": "Different Name"}
     await crud.update(db=async_session, object=updated_data, id=some_existing_id)
 
-    updated_record = await async_session.execute(
-        select(ModelTest).where(ModelTest.id == some_existing_id)
-    )
+    updated_record = await async_session.execute(select(ModelTest).where(ModelTest.id == some_existing_id))
     assert updated_record.scalar_one().name == "Different Name"
 
 
@@ -53,9 +50,7 @@ async def test_update_non_existent_record(async_session, test_data):
     updated_data = {"name": "New Name"}
     await crud.update(db=async_session, object=updated_data, id=non_existent_id)
 
-    record = await async_session.execute(
-        select(ModelTest).where(ModelTest.id == non_existent_id)
-    )
+    record = await async_session.execute(select(ModelTest).where(ModelTest.id == non_existent_id))
     assert record.scalar_one_or_none() is None
 
 
@@ -72,9 +67,7 @@ async def test_update_invalid_filters(async_session, test_data):
     await crud.update(db=async_session, object=updated_data, **non_matching_filter)
 
     for item in test_data:
-        record = await async_session.execute(
-            select(ModelTest).where(ModelTest.id == item["id"])
-        )
+        record = await async_session.execute(select(ModelTest).where(ModelTest.id == item["id"]))
         fetched_record = record.scalar_one()
         assert fetched_record.name != "New Name"
 
@@ -105,17 +98,10 @@ async def test_update_with_advanced_filters(async_session, test_data):
     updated_data = {"name": "Updated for Advanced Filter"}
 
     crud = CRUDFastAPI(ModelTest)
-    await crud.update(
-        db=async_session, object=updated_data, allow_multiple=True, **advanced_filter
-    )
+    await crud.update(db=async_session, object=updated_data, allow_multiple=True, **advanced_filter)
 
-    updated_records = await async_session.execute(
-        select(ModelTest).where(ModelTest.id > 5)
-    )
-    assert all(
-        record.name == "Updated for Advanced Filter"
-        for record in updated_records.scalars()
-    )
+    updated_records = await async_session.execute(select(ModelTest).where(ModelTest.id > 5))
+    assert all(record.name == "Updated for Advanced Filter" for record in updated_records.scalars())
 
 
 @pytest.mark.asyncio
@@ -126,16 +112,10 @@ async def test_update_multiple_records(async_session, test_data):
 
     crud = CRUDFastAPI(ModelTest)
     updated_data = {"name": "Updated Multiple"}
-    await crud.update(
-        db=async_session, object=updated_data, allow_multiple=True, tier_id=2
-    )
+    await crud.update(db=async_session, object=updated_data, allow_multiple=True, tier_id=2)
 
-    updated_records = await async_session.execute(
-        select(ModelTest).where(ModelTest.tier_id == 2)
-    )
-    assert all(
-        record.name == "Updated Multiple" for record in updated_records.scalars()
-    )
+    updated_records = await async_session.execute(select(ModelTest).where(ModelTest.tier_id == 2))
+    assert all(record.name == "Updated Multiple" for record in updated_records.scalars())
 
 
 @pytest.mark.asyncio
@@ -154,18 +134,14 @@ async def test_update_multiple_records_restriction(async_session, test_data):
 
 
 @pytest.mark.asyncio
-async def test_update_multiple_records_allow_multiple(
-    async_session, test_model, test_data
-):
+async def test_update_multiple_records_allow_multiple(async_session, test_model, test_data):
     for item in test_data:
         async_session.add(test_model(**item))
     await async_session.commit()
 
     crud = CRUDFastAPI(test_model)
 
-    await crud.update(
-        async_session, {"name": "UpdatedName"}, allow_multiple=True, tier_id=1
-    )
+    await crud.update(async_session, {"name": "UpdatedName"}, allow_multiple=True, tier_id=1)
     updated_count = await crud.count(async_session, name="UpdatedName")
     expected_count = len([item for item in test_data if item["tier_id"] == 1])
 
@@ -184,34 +160,22 @@ async def test_update_with_schema_object(async_session, test_data):
 
     await crud.update(db=async_session, object=update_schema, id=target_id)
 
-    updated_record = await async_session.execute(
-        select(ModelTest).where(ModelTest.id == target_id)
-    )
+    updated_record = await async_session.execute(select(ModelTest).where(ModelTest.id == target_id))
     updated = updated_record.scalar_one()
-    assert (
-        updated.name == "Updated Via Schema Object"
-    ), "Record should be updated with the name from the schema object."
+    assert updated.name == "Updated Via Schema Object", "Record should be updated with the name from the schema object."
 
 
 @pytest.mark.asyncio
 async def test_update_auto_updates_updated_at(async_session, test_data):
-    initial_time = datetime.now(timezone.utc)
+    initial_time = datetime.now(UTC)
     test_record = ModelTestWithTimestamp(name="InitialName", updated_at=initial_time)
     async_session.add(test_record)
     await async_session.commit()
 
     crud = CRUDFastAPI(ModelTestWithTimestamp, updated_at_column="updated_at")
-    await crud.update(
-        db=async_session, object={"name": "UpdatedName"}, id=test_record.id
-    )
+    await crud.update(db=async_session, object={"name": "UpdatedName"}, id=test_record.id)
 
-    updated_record = await async_session.execute(
-        select(ModelTestWithTimestamp).where(
-            ModelTestWithTimestamp.id == test_record.id
-        )
-    )
+    updated_record = await async_session.execute(select(ModelTestWithTimestamp).where(ModelTestWithTimestamp.id == test_record.id))
     updated = updated_record.scalar_one()
     assert updated.name == "UpdatedName", "Record should be updated with the new name."
-    assert (
-        updated.updated_at > initial_time
-    ), "updated_at should be later than the initial timestamp."
+    assert updated.updated_at > initial_time, "updated_at should be later than the initial timestamp."

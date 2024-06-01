@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import ArgumentError
+
 from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
 
 
@@ -34,16 +35,12 @@ async def test_apply_sorting_single_column_desc(async_session, test_model, test_
     result = await async_session.execute(sorted_stmt)
     sorted_data = result.scalars().all()
 
-    expected_sorted_names_desc = sorted(
-        [item["name"] for item in test_data], reverse=True
-    )
+    expected_sorted_names_desc = sorted([item["name"] for item in test_data], reverse=True)
     assert [item.name for item in sorted_data] == expected_sorted_names_desc
 
 
 @pytest.mark.asyncio
-async def test_apply_sorting_multiple_columns_mixed_order(
-    async_session, test_model, test_data
-):
+async def test_apply_sorting_multiple_columns_mixed_order(async_session, test_model, test_data):
     for item in test_data:
         async_session.add(test_model(**item))
     await async_session.commit()
@@ -107,7 +104,4 @@ async def test_apply_sorting_sort_orders_without_columns(async_session, test_mod
     with pytest.raises(ValueError) as exc_info:
         crud._apply_sorting(stmt, None, ["asc"])
 
-    assert (
-        str(exc_info.value)
-        == "Sort orders provided without corresponding sort columns."
-    )
+    assert str(exc_info.value) == "Sort orders provided without corresponding sort columns."

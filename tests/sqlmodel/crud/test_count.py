@@ -1,8 +1,11 @@
-import pytest
 from unittest.mock import patch
-from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
+
+import pytest
+
 from CRUDFastAPI import JoinConfig
-from ..conftest import Project, Participant, ProjectsParticipantsAssociation
+from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
+
+from ..conftest import Participant, Project, ProjectsParticipantsAssociation
 
 
 @pytest.mark.asyncio
@@ -70,15 +73,9 @@ async def test_count_with_joins_config_many_to_many(async_session):
 
     async_session.add_all(
         [
-            ProjectsParticipantsAssociation(
-                project_id=project1.id, participant_id=participant1.id
-            ),
-            ProjectsParticipantsAssociation(
-                project_id=project2.id, participant_id=participant1.id
-            ),
-            ProjectsParticipantsAssociation(
-                project_id=project3.id, participant_id=participant2.id
-            ),
+            ProjectsParticipantsAssociation(project_id=project1.id, participant_id=participant1.id),
+            ProjectsParticipantsAssociation(project_id=project2.id, participant_id=participant1.id),
+            ProjectsParticipantsAssociation(project_id=project3.id, participant_id=participant2.id),
         ]
     )
     await async_session.commit()
@@ -101,13 +98,9 @@ async def test_count_with_joins_config_many_to_many(async_session):
         ),
     ]
 
-    count = await crud_project.count(
-        async_session, joins_config=joins_config, participant_id=1
-    )
+    count = await crud_project.count(async_session, joins_config=joins_config, participant_id=1)
 
-    assert (
-        count == 2
-    ), f"Expected to find 2 projects associated with 'John Doe', found {count}"
+    assert count == 2, f"Expected to find 2 projects associated with 'John Doe', found {count}"
 
 
 @pytest.mark.asyncio
@@ -122,12 +115,8 @@ async def test_count_with_joins_and_filters_executes_primary_filter(async_sessio
 
     async_session.add_all(
         [
-            ProjectsParticipantsAssociation(
-                project_id=project1.id, participant_id=participant1.id
-            ),
-            ProjectsParticipantsAssociation(
-                project_id=project2.id, participant_id=participant2.id
-            ),
+            ProjectsParticipantsAssociation(project_id=project1.id, participant_id=participant1.id),
+            ProjectsParticipantsAssociation(project_id=project2.id, participant_id=participant2.id),
         ]
     )
     await async_session.commit()
@@ -148,13 +137,9 @@ async def test_count_with_joins_and_filters_executes_primary_filter(async_sessio
 
     crud_project = CRUDFastAPI(Project)
 
-    count = await crud_project.count(
-        async_session, joins_config=joins_config, name="Project Delta"
-    )
+    count = await crud_project.count(async_session, joins_config=joins_config, name="Project Delta")
 
-    assert (
-        count == 1
-    ), "Expected to find 1 project named 'Project Delta' associated with a manager, but found a different count."
+    assert count == 1, "Expected to find 1 project named 'Project Delta' associated with a manager, but found a different count."
 
 
 @pytest.mark.asyncio

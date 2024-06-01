@@ -1,4 +1,5 @@
 import pytest
+
 from CRUDFastAPI import CRUDFastAPI
 
 
@@ -34,9 +35,7 @@ async def test_parse_filters_not_contained_in(test_model):
     fast_crud = CRUDFastAPI(test_model)
     filters = fast_crud._parse_filters(category_id__not_in=[1, 2])
     assert len(filters) == 1
-    assert (
-        str(filters[0]) == "(test.category_id NOT IN (__[POSTCOMPILE_category_id_1]))"
-    )
+    assert str(filters[0]) == "(test.category_id NOT IN (__[POSTCOMPILE_category_id_1]))"
 
 
 @pytest.mark.asyncio

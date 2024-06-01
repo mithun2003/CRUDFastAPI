@@ -1,5 +1,7 @@
 import pytest
+
 from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
+
 from ...sqlalchemy.conftest import ModelTest
 
 
@@ -24,9 +26,7 @@ async def test_get_multi_by_cursor_pagination(async_session, test_data):
 
     crud = CRUDFastAPI(ModelTest)
     first_page = await crud.get_multi_by_cursor(db=async_session, limit=5)
-    second_page = await crud.get_multi_by_cursor(
-        db=async_session, cursor=first_page["next_cursor"], limit=5
-    )
+    second_page = await crud.get_multi_by_cursor(db=async_session, cursor=first_page["next_cursor"], limit=5)
 
     assert len(second_page["data"]) == 5
     assert second_page["data"][0]["id"] > first_page["data"][-1]["id"]
@@ -39,12 +39,8 @@ async def test_get_multi_by_cursor_sorting(async_session, test_data):
     await async_session.commit()
 
     crud = CRUDFastAPI(ModelTest)
-    asc_page = await crud.get_multi_by_cursor(
-        db=async_session, limit=5, sort_order="asc"
-    )
-    desc_page = await crud.get_multi_by_cursor(
-        db=async_session, limit=5, sort_order="desc"
-    )
+    asc_page = await crud.get_multi_by_cursor(db=async_session, limit=5, sort_order="asc")
+    desc_page = await crud.get_multi_by_cursor(db=async_session, limit=5, sort_order="desc")
 
     assert asc_page["data"][0]["id"] < asc_page["data"][-1]["id"]
     assert desc_page["data"][0]["id"] > desc_page["data"][-1]["id"]
@@ -58,9 +54,7 @@ async def test_get_multi_by_cursor_filtering(async_session, test_data):
 
     crud = CRUDFastAPI(ModelTest)
     filter_criteria = {"name": "SpecificName"}
-    filtered_page = await crud.get_multi_by_cursor(
-        db=async_session, limit=5, **filter_criteria
-    )
+    filtered_page = await crud.get_multi_by_cursor(db=async_session, limit=5, **filter_criteria)
 
     assert all(item["name"] == "SpecificName" for item in filtered_page["data"])
 
@@ -77,9 +71,7 @@ async def test_get_multi_by_cursor_edge_cases(async_session, test_data):
 
     highest_id = max(record["id"] for record in all_records["data"])
 
-    large_cursor_result = await crud.get_multi_by_cursor(
-        db=async_session, cursor=highest_id + 100, limit=5
-    )
+    large_cursor_result = await crud.get_multi_by_cursor(db=async_session, cursor=highest_id + 100, limit=5)
     assert len(large_cursor_result["data"]) == 0
 
     zero_limit_result = await crud.get_multi_by_cursor(db=async_session, limit=0)
@@ -94,21 +86,13 @@ async def test_get_multi_by_cursor_with_advanced_filters(async_session, test_dat
     await async_session.commit()
 
     crud = CRUDFastAPI(ModelTest)
-    advanced_filter_gt = await crud.get_multi_by_cursor(
-        db=async_session, limit=5, id__gt=5
-    )
+    advanced_filter_gt = await crud.get_multi_by_cursor(db=async_session, limit=5, id__gt=5)
 
     assert len(advanced_filter_gt["data"]) <= 5
-    assert all(
-        item["id"] > 5 for item in advanced_filter_gt["data"]
-    ), "All fetched records should have ID greater than 5"
+    assert all(item["id"] > 5 for item in advanced_filter_gt["data"]), "All fetched records should have ID greater than 5"
 
-    advanced_filter_lt = await crud.get_multi_by_cursor(
-        db=async_session, limit=5, id__lt=5
-    )
-    assert (
-        len(advanced_filter_lt["data"]) <= 5
-    ), "Should correctly paginate records with ID less than 5"
+    advanced_filter_lt = await crud.get_multi_by_cursor(db=async_session, limit=5, id__lt=5)
+    assert len(advanced_filter_lt["data"]) <= 5, "Should correctly paginate records with ID less than 5"
 
 
 @pytest.mark.asyncio
@@ -127,16 +111,10 @@ async def test_get_multi_by_cursor_pagination_integrity(async_session, test_data
         name="SpecificName",
     )
 
-    second_batch = await crud.get_multi_by_cursor(
-        db=async_session, cursor=first_batch["next_cursor"], limit=5
-    )
+    second_batch = await crud.get_multi_by_cursor(db=async_session, cursor=first_batch["next_cursor"], limit=5)
 
-    assert (
-        len(second_batch["data"]) == 5
-    ), "Pagination should fetch the correct number of records despite updates"
-    assert (
-        first_batch["data"][-1]["id"] < second_batch["data"][0]["id"]
-    ), "Pagination should maintain order across batches"
+    assert len(second_batch["data"]) == 5, "Pagination should fetch the correct number of records despite updates"
+    assert first_batch["data"][-1]["id"] < second_batch["data"][0]["id"], "Pagination should maintain order across batches"
 
 
 @pytest.mark.asyncio
@@ -147,9 +125,7 @@ async def test_get_multi_by_cursor_desc_with_cursor_filter(async_session, test_d
 
     crud = CRUDFastAPI(ModelTest)
 
-    first_page = await crud.get_multi_by_cursor(
-        db=async_session, limit=3, sort_column="id", sort_order="desc"
-    )
+    first_page = await crud.get_multi_by_cursor(db=async_session, limit=3, sort_column="id", sort_order="desc")
 
     assert len(first_page["data"]) == 3, "Should fetch the correct number of records"
     first_page_last_id = first_page["data"][-1]["id"]
@@ -162,10 +138,6 @@ async def test_get_multi_by_cursor_desc_with_cursor_filter(async_session, test_d
         sort_order="desc",
     )
 
-    assert (
-        len(second_page["data"]) == 3
-    ), "Should fetch the correct number of records for the second page"
+    assert len(second_page["data"]) == 3, "Should fetch the correct number of records for the second page"
     for record in second_page["data"]:
-        assert (
-            record["id"] < first_page_last_id
-        ), "Each ID in the second page should be less than the last ID of the first page"
+        assert record["id"] < first_page_last_id, "Each ID in the second page should be less than the last ID of the first page"

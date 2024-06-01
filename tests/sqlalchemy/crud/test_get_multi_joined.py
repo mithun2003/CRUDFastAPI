@@ -1,20 +1,23 @@
 from typing import Annotated
+
 import pytest
-from CRUDFastAPI import CRUDFastAPI, JoinConfig, aliased
 from pydantic import BaseModel, Field
+
+from CRUDFastAPI import CRUDFastAPI, JoinConfig, aliased
+
 from ...sqlalchemy.conftest import (
-    ModelTest,
-    TierModel,
-    CreateSchemaTest,
-    TierSchemaTest,
-    ReadSchemaTest,
-    CategoryModel,
-    CategorySchemaTest,
     BookingModel,
     BookingSchema,
-    Project,
+    CategoryModel,
+    CategorySchemaTest,
+    CreateSchemaTest,
+    ModelTest,
     Participant,
+    Project,
     ProjectsParticipantsAssociation,
+    ReadSchemaTest,
+    TierModel,
+    TierSchemaTest,
 )
 
 
@@ -105,10 +108,7 @@ async def test_get_multi_joined_sorting(async_session, test_data, test_data_tier
     )
 
     assert len(result["data"]) <= 10
-    assert all(
-        result["data"][i]["name"] <= result["data"][i + 1]["name"]
-        for i in range(len(result["data"]) - 1)
-    )
+    assert all(result["data"][i]["name"] <= result["data"][i + 1]["name"] for i in range(len(result["data"]) - 1))
 
 
 @pytest.mark.asyncio
@@ -139,9 +139,7 @@ async def test_get_multi_joined_filtering(async_session, test_data, test_data_ti
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_different_join_types(
-    async_session, test_data, test_data_tier
-):
+async def test_get_multi_joined_different_join_types(async_session, test_data, test_data_tier):
     for tier_item in test_data_tier:
         async_session.add(TierModel(**tier_item))
     await async_session.commit()
@@ -239,9 +237,7 @@ async def test_get_multi_joined_large_offset(async_session, test_data, test_data
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_invalid_limit_offset(
-    async_session, test_data, test_data_tier
-):
+async def test_get_multi_joined_invalid_limit_offset(async_session, test_data, test_data_tier):
     for tier_item in test_data_tier:
         async_session.add(TierModel(**tier_item))
     await async_session.commit()
@@ -272,9 +268,7 @@ async def test_get_multi_joined_invalid_limit_offset(
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_advanced_filtering(
-    async_session, test_data, test_data_tier
-):
+async def test_get_multi_joined_advanced_filtering(async_session, test_data, test_data_tier):
     for tier_item in test_data_tier:
         async_session.add(TierModel(**tier_item))
     await async_session.commit()
@@ -295,18 +289,12 @@ async def test_get_multi_joined_advanced_filtering(
         id__gt=5,
     )
 
-    assert (
-        len(advanced_filter_result["data"]) > 0
-    ), "Should fetch records with ID greater than 5"
-    assert all(
-        item["id"] > 5 for item in advanced_filter_result["data"]
-    ), "All fetched records should meet the advanced filter condition"
+    assert len(advanced_filter_result["data"]) > 0, "Should fetch records with ID greater than 5"
+    assert all(item["id"] > 5 for item in advanced_filter_result["data"]), "All fetched records should meet the advanced filter condition"
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_with_additional_join_model(
-    async_session, test_data, test_data_tier, test_data_category
-):
+async def test_get_multi_joined_with_additional_join_model(async_session, test_data, test_data_tier, test_data_category):
     for category_item in test_data_category:
         async_session.add(CategoryModel(**category_item))
     await async_session.commit()
@@ -345,15 +333,11 @@ async def test_get_multi_joined_with_additional_join_model(
 
     assert len(result["data"]) == min(10, len(test_data))
     assert result["total_count"] == len(test_data)
-    assert all(
-        "tier_name" in item and "category_name" in item for item in result["data"]
-    )
+    assert all("tier_name" in item and "category_name" in item for item in result["data"])
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_with_aliases(
-    async_session, test_data, test_data_tier, test_data_category, test_data_booking
-):
+async def test_get_multi_joined_with_aliases(async_session, test_data, test_data_tier, test_data_category, test_data_booking):
     for tier_item in test_data_tier:
         async_session.add(TierModel(**tier_item))
     for category_item in test_data_category:
@@ -397,31 +381,19 @@ async def test_get_multi_joined_with_aliases(
         sort_orders=["asc"],
     )
 
-    assert "data" in result and isinstance(
-        result["data"], list
-    ), "The result should have a 'data' key with a list of records."
+    assert "data" in result and isinstance(result["data"], list), "The result should have a 'data' key with a list of records."
     for booking in result["data"]:
-        assert (
-            "owner_name" in booking
-        ), "Each record should include 'owner_name' from the joined owner ModelTest data."
-        assert (
-            "user_name" in booking
-        ), "Each record should include 'user_name' from the joined user ModelTest data."
+        assert "owner_name" in booking, "Each record should include 'owner_name' from the joined owner ModelTest data."
+        assert "user_name" in booking, "Each record should include 'user_name' from the joined user ModelTest data."
     assert result is not None
     assert result["total_count"] >= 1, "Expected at least one booking record"
     first_result = result["data"][0]
-    assert (
-        first_result["owner_name"] == expected_owner_name
-    ), "Owner name does not match expected value"
-    assert (
-        first_result["user_name"] == expected_user_name
-    ), "User name does not match expected value"
+    assert first_result["owner_name"] == expected_owner_name, "Owner name does not match expected value"
+    assert first_result["user_name"] == expected_user_name, "User name does not match expected value"
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_with_aliases_no_schema(
-    async_session, test_data, test_data_tier, test_data_category, test_data_booking
-):
+async def test_get_multi_joined_with_aliases_no_schema(async_session, test_data, test_data_tier, test_data_category, test_data_booking):
     for tier_item in test_data_tier:
         async_session.add(TierModel(**tier_item))
     for category_item in test_data_category:
@@ -463,25 +435,15 @@ async def test_get_multi_joined_with_aliases_no_schema(
         sort_orders=["asc"],
     )
 
-    assert "data" in result and isinstance(
-        result["data"], list
-    ), "The result should have a 'data' key with a list of records."
+    assert "data" in result and isinstance(result["data"], list), "The result should have a 'data' key with a list of records."
     for booking in result["data"]:
-        assert (
-            "owner_name" in booking
-        ), "Each record should include 'owner_name' from the joined owner ModelTest data."
-        assert (
-            "user_name" in booking
-        ), "Each record should include 'user_name' from the joined user ModelTest data."
+        assert "owner_name" in booking, "Each record should include 'owner_name' from the joined owner ModelTest data."
+        assert "user_name" in booking, "Each record should include 'user_name' from the joined user ModelTest data."
     assert result is not None
     assert result["total_count"] >= 1, "Expected at least one booking record"
     first_result = result["data"][0]
-    assert (
-        first_result["owner_name"] == expected_owner_name
-    ), "Owner name does not match expected value"
-    assert (
-        first_result["user_name"] == expected_user_name
-    ), "User name does not match expected value"
+    assert first_result["owner_name"] == expected_owner_name, "Owner name does not match expected value"
+    assert first_result["user_name"] == expected_user_name, "User name does not match expected value"
 
 
 @pytest.mark.asyncio
@@ -495,19 +457,11 @@ async def test_many_to_many_joined(async_session):
     async_session.add_all([project1, project2, participant1, participant2])
     await async_session.commit()
 
-    projects_participants1 = ProjectsParticipantsAssociation(
-        project_id=1, participant_id=1
-    )
-    projects_participants2 = ProjectsParticipantsAssociation(
-        project_id=1, participant_id=2
-    )
-    projects_participants3 = ProjectsParticipantsAssociation(
-        project_id=2, participant_id=1
-    )
+    projects_participants1 = ProjectsParticipantsAssociation(project_id=1, participant_id=1)
+    projects_participants2 = ProjectsParticipantsAssociation(project_id=1, participant_id=2)
+    projects_participants3 = ProjectsParticipantsAssociation(project_id=2, participant_id=1)
 
-    async_session.add_all(
-        [projects_participants1, projects_participants2, projects_participants3]
-    )
+    async_session.add_all([projects_participants1, projects_participants2, projects_participants3])
     await async_session.commit()
 
     crud_project = CRUDFastAPI(Project)
@@ -557,23 +511,13 @@ async def test_many_to_many_joined(async_session):
     ]
 
     assert len(records["data"]) == 3, "Expected three project-participant associations"
-    assert (
-        len(records["data"]) == records["total_count"]
-    ), "Number of records should be the same in total_count and len"
+    assert len(records["data"]) == records["total_count"], "Number of records should be the same in total_count and len"
 
     for expected, actual in zip(expected_results, records["data"]):
-        assert (
-            actual["id"] == expected["project_id"]
-        ), f"Project ID mismatch. Expected: {expected['project_id']}, Got: {actual['id']}"
-        assert (
-            actual["participant_id"] == expected["participant_id"]
-        ), f"Participant ID mismatch. Expected: {expected['participant_id']}, Got: {actual['participant_id']}"
-        assert (
-            actual["participant_name"] == expected["participant_name"]
-        ), f"Participant name mismatch. Expected: {expected['participant_name']}, Got: {actual['participant_name']}"
-        assert (
-            actual["participant_role"] == expected["participant_role"]
-        ), f"Participant role mismatch. Expected: {expected['participant_role']}, Got: {actual['participant_role']}"
+        assert actual["id"] == expected["project_id"], f"Project ID mismatch. Expected: {expected['project_id']}, Got: {actual['id']}"
+        assert actual["participant_id"] == expected["participant_id"], f"Participant ID mismatch. Expected: {expected['participant_id']}, Got: {actual['participant_id']}"
+        assert actual["participant_name"] == expected["participant_name"], f"Participant name mismatch. Expected: {expected['participant_name']}, Got: {actual['participant_name']}"
+        assert actual["participant_role"] == expected["participant_role"], f"Participant role mismatch. Expected: {expected['participant_role']}, Got: {actual['participant_role']}"
 
 
 @pytest.mark.asyncio
@@ -583,14 +527,9 @@ async def test_get_multi_joined_conflicting_join_parameters(async_session):
         await crud.get_multi_joined(
             db=async_session,
             join_model=TierModel,
-            joins_config=[
-                JoinConfig(model=TierModel, join_on=TierModel.id == ModelTest.tier_id)
-            ],
+            joins_config=[JoinConfig(model=TierModel, join_on=TierModel.id == ModelTest.tier_id)],
         )
-    assert (
-        "Cannot use both single join parameters and joins_config simultaneously"
-        in str(exc_info.value)
-    )
+    assert "Cannot use both single join parameters and joins_config simultaneously" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -614,9 +553,7 @@ async def test_get_multi_joined_unsupported_join_type(async_session, test_data):
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_with_joined_model_filters(
-    async_session, test_data, test_data_tier
-):
+async def test_get_multi_joined_with_joined_model_filters(async_session, test_data, test_data_tier):
     for tier_data in test_data_tier:
         async_session.add(TierModel(**tier_data))
     await async_session.commit()
@@ -638,13 +575,9 @@ async def test_get_multi_joined_with_joined_model_filters(
         limit=10,
     )
 
-    assert (
-        len(result["data"]) > 0
-    ), "Expected to find at least one ModelTest record associated with the 'Premium' tier."
+    assert len(result["data"]) > 0, "Expected to find at least one ModelTest record associated with the 'Premium' tier."
     for item in result["data"]:
-        assert (
-            item["tier_name"] == "Premium"
-        ), "Expected tier_name to be 'Premium' for all fetched records."
+        assert item["tier_name"] == "Premium", "Expected tier_name to be 'Premium' for all fetched records."
 
 
 @pytest.mark.asyncio
@@ -660,15 +593,11 @@ async def test_get_multi_joined_missing_schema_to_select(async_session, test_dat
             join_model=TierModel,
             return_as_model=True,
         )
-    assert "schema_to_select must be provided when return_as_model is True" in str(
-        exc_info.value
-    )
+    assert "schema_to_select must be provided when return_as_model is True" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_validation_error(
-    async_session, test_data, test_model, test_data_tier
-):
+async def test_get_multi_joined_validation_error(async_session, test_data, test_model, test_data_tier):
     for tier_data in test_data_tier:
         async_session.add(TierModel(**tier_data))
     await async_session.commit()
@@ -693,9 +622,7 @@ async def test_get_multi_joined_validation_error(
             schema_to_select=CustomCreateSchemaTest,
         )
 
-    assert "Data validation error for schema CustomCreateSchemaTest:" in str(
-        exc_info.value
-    )
+    assert "Data validation error for schema CustomCreateSchemaTest:" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -741,27 +668,15 @@ async def test_get_multi_joined_with_nesting(async_session, test_data, test_data
     if result["data"]:
         for item in result["data"]:
             assert "tier" in item, "Nested tier data should be present under key 'tier'"
-            assert (
-                "category" in item
-            ), "Nested category data should be present under key 'category'"
-            assert isinstance(
-                item["tier"], dict
-            ), "Nested tier data should be a dictionary"
-            assert isinstance(
-                item["category"], dict
-            ), "Nested category data should be a dictionary"
-            assert (
-                "tier_" not in item["tier"]
-            ), "No prefix should be present in the nested tier keys"
-            assert (
-                "category_" not in item["category"]
-            ), "No prefix should be present in the nested category keys"
+            assert "category" in item, "Nested category data should be present under key 'category'"
+            assert isinstance(item["tier"], dict), "Nested tier data should be a dictionary"
+            assert isinstance(item["category"], dict), "Nested category data should be a dictionary"
+            assert "tier_" not in item["tier"], "No prefix should be present in the nested tier keys"
+            assert "category_" not in item["category"], "No prefix should be present in the nested category keys"
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_no_prefix_regular(
-    async_session, test_data, test_data_tier
-):
+async def test_get_multi_joined_no_prefix_regular(async_session, test_data, test_data_tier):
     for tier_item in test_data_tier:
         async_session.add(TierModel(**tier_item))
     await async_session.commit()
@@ -788,9 +703,7 @@ async def test_get_multi_joined_no_prefix_regular(
 
 
 @pytest.mark.asyncio
-async def test_get_multi_joined_no_prefix_nested(
-    async_session, test_data, test_data_tier
-):
+async def test_get_multi_joined_no_prefix_nested(async_session, test_data, test_data_tier):
     for tier_item in test_data_tier:
         async_session.add(TierModel(**tier_item))
     await async_session.commit()
@@ -813,9 +726,5 @@ async def test_get_multi_joined_no_prefix_nested(
     assert result and result["data"], "Expected data in the result."
     for item in result["data"]:
         assert "name" in item, "Expected user name in each item."
-        assert (
-            TierModel.__tablename__ in item
-        ), f"Expected nested '{TierModel.__tablename__}' key in each item."
-        assert (
-            "name" in item[TierModel.__tablename__]
-        ), f"Expected 'name' field inside nested '{TierModel.__tablename__}' dictionary."
+        assert TierModel.__tablename__ in item, f"Expected nested '{TierModel.__tablename__}' key in each item."
+        assert "name" in item[TierModel.__tablename__], f"Expected 'name' field inside nested '{TierModel.__tablename__}' dictionary."

@@ -1,7 +1,8 @@
 import pytest
-from sqlalchemy import select
-from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
 from pydantic import ValidationError
+from sqlalchemy import select
+
+from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
 
 
 @pytest.mark.asyncio
@@ -65,9 +66,7 @@ async def test_create_with_invalid_data_types(async_session, test_model, create_
 
 
 @pytest.mark.asyncio
-async def test_create_successful_multi_pk(
-    async_session, multi_pk_model, multi_pk_test_create_schema
-):
+async def test_create_successful_multi_pk(async_session, multi_pk_model, multi_pk_test_create_schema):
     crud = CRUDFastAPI(multi_pk_model)
     new_data = multi_pk_test_create_schema(name="New Record", id=1, uuid="a")
     await crud.create(async_session, new_data)

@@ -1,19 +1,19 @@
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase, relationship
-from pydantic import BaseModel, ConfigDict
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
 from sqlalchemy.sql import func
 
+from CRUDFastAPI import EndpointCreator
 from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
 from CRUDFastAPI.endpoint.crud_router import crud_router
-from CRUDFastAPI import EndpointCreator
 
 
 class Base(DeclarativeBase):
@@ -42,9 +42,7 @@ class ModelTest(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     tier_id = Column(Integer, ForeignKey("tier.id"))
-    category_id = Column(
-        Integer, ForeignKey("category.id"), nullable=True, default=None
-    )
+    category_id = Column(Integer, ForeignKey("category.id"), nullable=True, default=None)
     tier = relationship("TierModel", back_populates="tests")
     category = relationship("CategoryModel", back_populates="tests")
     multi_pk = relationship("MultiPkModel", back_populates="test")
@@ -57,14 +55,10 @@ class ModelTestWithTimestamp(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     tier_id = Column(Integer, ForeignKey("tier.id"))
-    category_id = Column(
-        Integer, ForeignKey("category.id"), nullable=True, default=None
-    )
+    category_id = Column(Integer, ForeignKey("category.id"), nullable=True, default=None)
     is_deleted = Column(Boolean, default=False)
     deleted_at = Column(DateTime, nullable=True, default=None)
-    updated_at = Column(
-        DateTime, default=func.now(), onupdate=func.now(), nullable=False
-    )
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
 
 class TierModel(Base):
@@ -166,14 +160,10 @@ class BookingSchema(BaseModel):
     booking_date: datetime
 
 
-async_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:", echo=True, future=True
-)
+async_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=True, future=True)
 
 
-local_session = sessionmaker(
-    bind=async_engine, class_=AsyncSession, expire_on_commit=False
-)
+local_session = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 def get_session_local():

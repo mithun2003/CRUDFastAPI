@@ -1,14 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from CRUDFastAPI import CRUDFastAPI, crud_router
 
 from ...sqlalchemy.conftest import get_session_local
 
 
 @pytest.mark.asyncio
-async def test_deleted_methods(
-    client: TestClient, async_session, test_model, create_schema, update_schema
-):
+async def test_deleted_methods(client: TestClient, async_session, test_model, create_schema, update_schema):
     custom_router = crud_router(
         session=get_session_local,
         model=test_model,
@@ -22,9 +21,7 @@ async def test_deleted_methods(
 
     client.app.include_router(custom_router)
 
-    response = client.post(
-        "/test_custom/create", json={"name": "Test Item", "tier_id": 1}
-    )
+    response = client.post("/test_custom/create", json={"name": "Test Item", "tier_id": 1})
     assert response.status_code == 200
 
     item_id = response.json()["id"]

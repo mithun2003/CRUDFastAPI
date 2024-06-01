@@ -1,8 +1,10 @@
-import pytest
 from typing import Annotated
+
+import pytest
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
+
 from CRUDFastAPI.crud.fast_crud import CRUDFastAPI
-from sqlalchemy import select, func
 
 
 class CustomCreateSchemaTest(BaseModel):
@@ -16,9 +18,7 @@ async def test_get_multi_basic(async_session, test_model, test_data):
         async_session.add(test_model(**item))
     await async_session.commit()
 
-    total_count_query = await async_session.execute(
-        select(func.count()).select_from(test_model)
-    )
+    total_count_query = await async_session.execute(select(func.count()).select_from(test_model))
     total_count = total_count_query.scalar()
 
     crud = CRUDFastAPI(test_model)
@@ -35,9 +35,7 @@ async def test_get_multi_pagination(async_session, test_model, test_data):
         async_session.add(record)
     await async_session.commit()
 
-    total_count_query = await async_session.execute(
-        select(func.count()).select_from(test_model)
-    )
+    total_count_query = await async_session.execute(select(func.count()).select_from(test_model))
     total_count = total_count_query.scalar()
 
     crud = CRUDFastAPI(test_model)
@@ -55,9 +53,7 @@ async def test_get_multi_unpaginated(async_session, test_model, test_data):
         async_session.add(record)
     await async_session.commit()
 
-    total_count_query = await async_session.execute(
-        select(func.count()).select_from(test_model)
-    )
+    total_count_query = await async_session.execute(select(func.count()).select_from(test_model))
     total_count = total_count_query.scalar()
 
     crud = CRUDFastAPI(test_model)
@@ -72,20 +68,14 @@ async def test_get_multi_sorting(async_session, test_model, test_data):
         async_session.add(test_model(**item))
     await async_session.commit()
 
-    total_count_query = await async_session.execute(
-        select(func.count()).select_from(test_model)
-    )
+    total_count_query = await async_session.execute(select(func.count()).select_from(test_model))
     total_count = total_count_query.scalar()
 
     crud = CRUDFastAPI(test_model)
-    result = await crud.get_multi(
-        async_session, sort_columns=["name"], sort_orders=["asc"]
-    )
+    result = await crud.get_multi(async_session, sort_columns=["name"], sort_orders=["asc"])
 
     sorted_data = sorted(test_data, key=lambda x: x["name"])
-    assert [item["name"] for item in result["data"]] == [
-        item["name"] for item in sorted_data
-    ][:total_count]
+    assert [item["name"] for item in result["data"]] == [item["name"] for item in sorted_data][:total_count]
 
 
 @pytest.mark.asyncio
@@ -107,9 +97,7 @@ async def test_get_multi_edge_cases(async_session, test_model, test_data):
         async_session.add(test_model(**item))
     await async_session.commit()
 
-    total_count_query = await async_session.execute(
-        select(func.count()).select_from(test_model)
-    )
+    total_count_query = await async_session.execute(select(func.count()).select_from(test_model))
     total_count = total_count_query.scalar()
 
     crud = CRUDFastAPI(test_model)
@@ -124,17 +112,13 @@ async def test_get_multi_edge_cases(async_session, test_model, test_data):
 
 
 @pytest.mark.asyncio
-async def test_get_multi_return_model(
-    async_session, test_model, test_data, create_schema
-):
+async def test_get_multi_return_model(async_session, test_model, test_data, create_schema):
     for item in test_data:
         async_session.add(test_model(**item))
     await async_session.commit()
 
     crud = CRUDFastAPI(test_model)
-    result = await crud.get_multi(
-        async_session, return_as_model=True, schema_to_select=create_schema
-    )
+    result = await crud.get_multi(async_session, return_as_model=True, schema_to_select=create_schema)
 
     assert all(isinstance(item, create_schema) for item in result["data"])
 
@@ -148,9 +132,7 @@ async def test_get_multi_advanced_filtering(async_session, test_model, test_data
     crud = CRUDFastAPI(test_model)
     filtered_results = await crud.get_multi(async_session, id__gt=5)
 
-    assert all(
-        item["id"] > 5 for item in filtered_results["data"]
-    ), "Should only include records with ID greater than 5"
+    assert all(item["id"] > 5 for item in filtered_results["data"]), "Should only include records with ID greater than 5"
 
 
 @pytest.mark.asyncio
@@ -160,9 +142,7 @@ async def test_get_multi_multiple_sorting(async_session, test_model, test_data):
     await async_session.commit()
 
     crud = CRUDFastAPI(test_model)
-    result = await crud.get_multi(
-        async_session, sort_columns=["tier_id", "name"], sort_orders=["asc", "desc"]
-    )
+    result = await crud.get_multi(async_session, sort_columns=["tier_id", "name"], sort_orders=["asc", "desc"])
 
     assert len(result["data"]) > 0, "Should fetch sorted records"
 
@@ -174,45 +154,31 @@ async def test_get_multi_multiple_sorting(async_session, test_model, test_data):
     for item in result["data"]:
         if item["tier_id"] != current_tier_id:
             if names_in_current_tier:
-                assert (
-                    names_in_current_tier == sorted(names_in_current_tier, reverse=True)
-                ), f"Names within tier_id {current_tier_id} should be sorted in descending order"
+                assert names_in_current_tier == sorted(names_in_current_tier, reverse=True), f"Names within tier_id {current_tier_id} should be sorted in descending order"
             current_tier_id = item["tier_id"]
             names_in_current_tier = [item["name"]]
         else:
             names_in_current_tier.append(item["name"])
 
     if names_in_current_tier:
-        assert (
-            names_in_current_tier == sorted(names_in_current_tier, reverse=True)
-        ), f"Names within tier_id {current_tier_id} should be sorted in descending order"
+        assert names_in_current_tier == sorted(names_in_current_tier, reverse=True), f"Names within tier_id {current_tier_id} should be sorted in descending order"
 
 
 @pytest.mark.asyncio
-async def test_get_multi_advanced_filtering_return_model(
-    async_session, test_model, test_data, read_schema
-):
+async def test_get_multi_advanced_filtering_return_model(async_session, test_model, test_data, read_schema):
     for item in test_data:
         async_session.add(test_model(**item))
     await async_session.commit()
 
     crud = CRUDFastAPI(test_model)
-    result = await crud.get_multi(
-        async_session, id__lte=5, return_as_model=True, schema_to_select=read_schema
-    )
+    result = await crud.get_multi(async_session, id__lte=5, return_as_model=True, schema_to_select=read_schema)
 
-    assert all(
-        isinstance(item, read_schema) for item in result["data"]
-    ), "All items should be instances of the schema"
-    assert all(
-        item.id <= 5 for item in result["data"]
-    ), "Should only include records with ID less than or equal to 5"
+    assert all(isinstance(item, read_schema) for item in result["data"]), "All items should be instances of the schema"
+    assert all(item.id <= 5 for item in result["data"]), "Should only include records with ID less than or equal to 5"
 
 
 @pytest.mark.asyncio
-async def test_get_multi_return_as_model_without_schema(
-    async_session, test_model, test_data
-):
+async def test_get_multi_return_as_model_without_schema(async_session, test_model, test_data):
     for item in test_data:
         async_session.add(test_model(**item))
     await async_session.commit()
@@ -222,9 +188,7 @@ async def test_get_multi_return_as_model_without_schema(
     with pytest.raises(ValueError) as exc_info:
         await crud.get_multi(async_session, return_as_model=True)
 
-    assert "schema_to_select must be provided when return_as_model is True" in str(
-        exc_info.value
-    )
+    assert "schema_to_select must be provided when return_as_model is True" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -239,10 +203,6 @@ async def test_get_multi_handle_validation_error(async_session, test_model):
     crud = CRUDFastAPI(test_model)
 
     with pytest.raises(ValueError) as exc_info:
-        await crud.get_multi(
-            async_session, return_as_model=True, schema_to_select=CustomCreateSchemaTest
-        )
+        await crud.get_multi(async_session, return_as_model=True, schema_to_select=CustomCreateSchemaTest)
 
-    assert "Data validation error for schema CustomCreateSchemaTest:" in str(
-        exc_info.value
-    )
+    assert "Data validation error for schema CustomCreateSchemaTest:" in str(exc_info.value)
