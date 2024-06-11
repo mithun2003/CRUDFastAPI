@@ -19,7 +19,6 @@ class JoinConfig(BaseModel):
     join_type: str = "left"
     alias: Optional[AliasedClass] = None
     filters: Optional[dict] = None
-    join_or_filter: bool = False
     relationship_type: Optional[str] = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
